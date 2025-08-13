@@ -59,11 +59,33 @@ export const authProvider: AuthProvider = {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        
+        // Enhanced error handling based on status codes and error messages
+        let errorMessage = "Failed to authenticate with server";
+        
+        if (response.status === 401) {
+          errorMessage = errorData.message || "Invalid signature or wallet not authorized for admin access";
+        } else if (response.status === 403) {
+          errorMessage = "This wallet does not have admin privileges";
+        } else if (response.status === 400) {
+          if (errorData.message?.includes("signature")) {
+            errorMessage = "Invalid signature format. Please try again.";
+          } else if (errorData.message?.includes("nonce")) {
+            errorMessage = "Message expired. Please refresh and try again.";
+          } else {
+            errorMessage = errorData.message || "Invalid request format";
+          }
+        } else if (response.status >= 500) {
+          errorMessage = "Server error. Please try again in a moment.";
+        } else {
+          errorMessage = errorData.message || `Server returned error ${response.status}`;
+        }
+        
         return {
           success: false,
           error: {
             name: "AuthenticationError",
-            message: errorData.message || "Failed to authenticate with server",
+            message: errorMessage,
           },
         };
       }
@@ -85,7 +107,6 @@ export const authProvider: AuthProvider = {
         redirectTo: "/",
       };
     } catch (error) {
-      console.error("Login error:", error);
       return {
         success: false,
         error: {
@@ -109,10 +130,7 @@ export const authProvider: AuthProvider = {
   check: async () => {
     const token = localStorage.getItem(TOKEN_KEY);
 
-    console.log("Auth check - token:", token ? "present" : "not present");
-
     if (!token) {
-      console.log("Auth check - redirecting to login");
       return {
         authenticated: false,
         redirectTo: "/login",
@@ -129,12 +147,10 @@ export const authProvider: AuthProvider = {
       });
 
       if (response.ok) {
-        console.log("Auth check - token valid");
         return {
           authenticated: true,
         };
       } else {
-        console.log("Auth check - token invalid, redirecting to login");
         // Token is invalid, clean up
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(ADMIN_DATA_KEY);
@@ -144,7 +160,6 @@ export const authProvider: AuthProvider = {
         };
       }
     } catch (error) {
-      console.error("Auth check error:", error);
       return {
         authenticated: false,
         redirectTo: "/login",
@@ -186,7 +201,7 @@ export const authProvider: AuthProvider = {
           };
         }
       } catch (error) {
-        console.error("Get identity error:", error);
+        // Silent fail, fallback to stored data
       }
 
       // Fallback to stored data
@@ -204,8 +219,6 @@ export const authProvider: AuthProvider = {
   },
 
   onError: async (error) => {
-    console.error("Auth provider error:", error);
-
     // Handle 401/403 errors by logging out
     if (error?.status === 401 || error?.status === 403) {
       localStorage.removeItem(TOKEN_KEY);

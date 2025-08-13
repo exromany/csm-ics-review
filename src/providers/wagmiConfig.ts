@@ -1,12 +1,17 @@
-import { createConfig, mainnet } from "wagmi";
 import { createPublicClient, http } from "viem";
-import { MetaMaskConnector } from "wagmi/connectors/metaMask";
+import { hoodi } from "viem/chains";
+import { createConfig, mainnet } from "wagmi";
 import { InjectedConnector } from "wagmi/connectors/injected";
+import { MetaMaskConnector } from "wagmi/connectors/metaMask";
 import { WalletConnectConnector } from "wagmi/connectors/walletConnect";
 
-const chains = [mainnet];
+// Get required chain ID from environment
+const requiredChainId = parseInt(import.meta.env.VITE_CHAIN_ID || "1");
+const requiredChain = requiredChainId === 560048 ? hoodi : mainnet;
+
+const chains = [requiredChain, mainnet, hoodi];
 const publicClient = createPublicClient({
-  chain: mainnet,
+  chain: requiredChain,
   transport: http(),
 });
 
@@ -37,4 +42,4 @@ export const config = createConfig({
   publicClient,
 });
 
-export { chains };
+export { chains, requiredChain, requiredChainId };

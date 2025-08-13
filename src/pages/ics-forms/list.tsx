@@ -32,6 +32,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Pagination,
@@ -732,10 +737,17 @@ export const IcsFormsList = () => {
                           #{form.id}
                         </TableCell>
                         <TableCell className="max-w-[150px]">
-                          <code className="text-sm bg-muted px-2 py-1 rounded block truncate">
-                            {form.form.mainAddress.slice(0, 8)}...
-                            {form.form.mainAddress.slice(-6)}
-                          </code>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <code className="text-sm bg-muted px-2 py-1 rounded block truncate cursor-help">
+                                {form.form.mainAddress.slice(0, 8)}...
+                                {form.form.mainAddress.slice(-6)}
+                              </code>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="font-mono text-xs">{form.form.mainAddress}</p>
+                            </TooltipContent>
+                          </Tooltip>
                         </TableCell>
                         <TableCell>
                           <StatusBadge status={form.status} />
@@ -772,14 +784,22 @@ export const IcsFormsList = () => {
                         </TableCell>
                         <TableCell className="text-muted-foreground max-w-[120px]">
                           {form.lastReviewer ? (
-                            <code className="text-xs block truncate">
-                              {form.lastReviewer.startsWith("0x")
-                                ? `${form.lastReviewer.slice(
-                                    0,
-                                    6
-                                  )}...${form.lastReviewer.slice(-4)}`
-                                : form.lastReviewer}
-                            </code>
+                            form.lastReviewer.startsWith("0x") ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <code className="text-xs block truncate cursor-help">
+                                    {`${form.lastReviewer.slice(0, 6)}...${form.lastReviewer.slice(-4)}`}
+                                  </code>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="font-mono text-xs">{form.lastReviewer}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <code className="text-xs block truncate">
+                                {form.lastReviewer}
+                              </code>
+                            )
                           ) : (
                             <span>—</span>
                           )}

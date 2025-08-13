@@ -41,36 +41,36 @@ export const TOTAL_SCORE_REQUIRED = 15;
 
 export const SCORE_SOURCES: ScoreSource[] = [
   {
-    id: 'proofOfExperience',
-    title: 'Proof-of-Experience',
+    id: "proofOfExperience",
+    title: "Proof-of-Experience",
     description:
-      'This group of proofs represents users experience in Ethereum validation',
+      "This group of proofs represents users experience in Ethereum validation",
     min: 5,
     max: 8,
     items: [
       {
-        id: 'ethStaker',
-        name: 'EthStaker solo-stakers list',
+        id: "ethStaker",
+        name: "EthStaker solo-stakers list",
         icon: EthStakerIcon,
         points: 6,
         maxPoints: 6,
         description:
-          'Submitted address is present in the latest EthStaker Solo Stakers list as a deposit address, and not excluded following the a Sybil analysis of the list',
+          "Submitted address is present in the latest EthStaker Solo Stakers list as a deposit address, and not excluded following the a Sybil analysis of the list",
       },
       {
-        id: 'stakeCat',
-        name: 'StakeCat solo-stakers list',
+        id: "stakeCat",
+        name: "StakeCat solo-stakers list",
         icon: StakeCatIcon,
         points: 6,
         maxPoints: 6,
         description:
-          'Submitted address is present in the latest StakeCat Solo Stakers list (Gnosischain-Solo-Stakers or Solo-Stakers-B), and not excluded following a Sybil analysis of the list',
+          "Submitted address is present in the latest StakeCat Solo Stakers list (Gnosischain-Solo-Stakers or Solo-Stakers-B), and not excluded following a Sybil analysis of the list",
       },
       {
-        id: 'obolTechne',
-        name: 'Obol Techne',
+        id: "obolTechne",
+        name: "Obol Techne",
         icon: ObolIcon,
-        points: '4-6',
+        points: "4-6",
         maxPoints: 6,
         description: (
           <>
@@ -82,19 +82,19 @@ export const SCORE_SOURCES: ScoreSource[] = [
         ),
       },
       {
-        id: 'ssvVerified',
-        name: 'SSV Verified operators',
+        id: "ssvVerified",
+        name: "SSV Verified operators",
         icon: SSVIcon,
         points: 7,
         maxPoints: 7,
         description:
-          'Submitted address is present in the SSV Verified Operators list and does not belong to a professional operator',
+          "Submitted address is present in the SSV Verified Operators list and does not belong to a professional operator",
       },
       {
-        id: 'csmTestnet',
-        name: 'CSM testnet participation',
+        id: "csmTestnet",
+        name: "CSM testnet participation",
         icon: CSMIcon,
-        points: '4-5',
+        points: "4-5",
         maxPoints: 5,
         description: (
           <>
@@ -110,8 +110,8 @@ export const SCORE_SOURCES: ScoreSource[] = [
         ),
       },
       {
-        id: 'csmMainnet',
-        name: 'CSM mainnet participation',
+        id: "csmMainnet",
+        name: "CSM mainnet participation",
         icon: CSMIcon,
         points: 6,
         maxPoints: 6,
@@ -125,54 +125,54 @@ export const SCORE_SOURCES: ScoreSource[] = [
         ),
       },
       {
-        id: 'sdvtTestnet',
-        name: 'SDVTM testnet participation',
+        id: "sdvtTestnet",
+        name: "SDVTM testnet participation",
         icon: SDVTIcon,
         points: 5,
         maxPoints: 5,
         description:
-          'Submitted address participated in and completed the entire duration of a Simple DVT testnet with Obol, SSV, or Safestake as a home or community staker',
+          "Submitted address participated in and completed the entire duration of a Simple DVT testnet with Obol, SSV, or Safestake as a home or community staker",
       },
       {
-        id: 'sdvtMainnet',
-        name: 'SDVTM mainnet participation',
+        id: "sdvtMainnet",
+        name: "SDVTM mainnet participation",
         icon: SDVTIcon,
         points: 7,
         maxPoints: 7,
         description:
-          'Submitted address is actively participating as a home or community staker in the Lido Simple DVT Module on mainnet at the time of application submission',
+          "Submitted address is actively participating as a home or community staker in the Lido Simple DVT Module on mainnet at the time of application submission",
       },
     ],
   },
   {
-    id: 'proofOfHumanity',
-    title: 'Proof-of-Humanity',
+    id: "proofOfHumanity",
+    title: "Proof-of-Humanity",
     description:
-      'This group of proofs allows users to earn a score by being verified by third-party platforms that apply their own rules for identifying real individuals',
+      "This group of proofs allows users to earn a score by being verified by third-party platforms that apply their own rules for identifying real individuals",
     min: 4,
     max: 8,
     items: [
       {
-        id: 'humanPassport',
-        name: 'Human passport',
+        id: "humanPassport",
+        name: "Human passport",
         icon: HumanPassportIcon,
-        points: '3-8',
+        points: "3-8",
         maxPoints: 8,
         description:
-          'Submitted address has the corresponding score according to a Lido customized scoring system on Human Passport',
+          "Submitted address has the corresponding score according to a Lido customized scoring system on Human Passport",
       },
       {
-        id: 'circles',
-        name: 'Circles',
+        id: "circles",
+        name: "Circles",
         icon: CirclesIcon,
-        points: '3-8',
-        maxPoints: 8,
+        points: 4,
+        maxPoints: 4,
         description:
-          'Submitted address is verified via a dedicated Lido group on Circles',
+          "Submitted address is verified via a dedicated Lido group on Circles",
       },
       {
-        id: 'discord',
-        name: 'Discord',
+        id: "discord",
+        name: "Discord",
         icon: DiscordIcon,
         points: 2,
         maxPoints: 2,
@@ -185,8 +185,8 @@ export const SCORE_SOURCES: ScoreSource[] = [
         ),
       },
       {
-        id: 'twitter',
-        name: 'X',
+        id: "twitter",
+        name: "X",
         icon: XTwitterIcon,
         points: 1,
         maxPoints: 1,
@@ -201,36 +201,36 @@ export const SCORE_SOURCES: ScoreSource[] = [
     ],
   },
   {
-    id: 'proofOfEngagement',
-    title: 'Proof-of-Engagement',
+    id: "proofOfEngagement",
+    title: "Proof-of-Engagement",
     description:
-      'This group represents user engagement within the Ethereum and Lido ecosystems',
+      "This group represents user engagement within the Ethereum and Lido ecosystems",
     min: 2,
     max: 7,
     items: [
       {
-        id: 'aragonVotes',
-        name: 'Participation in Aragon Votes',
+        id: "aragonVotes",
+        name: "Participation in Aragon Votes",
         icon: AragonIcon,
         points: 2,
         maxPoints: 2,
         description:
-          'Submitted address has voted at least twice with more than 100 LDO',
+          "Submitted address has voted at least twice with more than 100 LDO",
       },
       {
-        id: 'snapshotVotes',
-        name: 'Participation in Snapshot Votes',
+        id: "snapshotVotes",
+        name: "Participation in Snapshot Votes",
         icon: SnapshotIcon,
         points: 1,
         maxPoints: 1,
         description:
-          'Submitted address has voted at least three times with more than 100 LDO',
+          "Submitted address has voted at least three times with more than 100 LDO",
       },
       {
-        id: 'lidoGalxe',
-        name: 'Lido Galxe score',
+        id: "lidoGalxe",
+        name: "Lido Galxe score",
         icon: GalxeIcon,
-        points: '4-5',
+        points: "4-5",
         maxPoints: 5,
         description: (
           <>
@@ -241,10 +241,10 @@ export const SCORE_SOURCES: ScoreSource[] = [
         ),
       },
       {
-        id: 'highSignal',
-        name: 'Lido High Signal score',
+        id: "highSignal",
+        name: "Lido High Signal score",
         icon: HighSignalIcon,
-        points: '2-5',
+        points: "2-5",
         maxPoints: 5,
         description: (
           <>
@@ -257,13 +257,13 @@ export const SCORE_SOURCES: ScoreSource[] = [
         ),
       },
       {
-        id: 'gitPoaps',
-        name: 'GitPOAPs',
+        id: "gitPoaps",
+        name: "GitPOAPs",
         icon: GitPOAPsIcon,
         points: 2,
         maxPoints: 2,
         description:
-          'Submitted address has at least one GitPOAP for contribution to the staking-related public good applications selected by CSM Committee',
+          "Submitted address has at least one GitPOAP for contribution to the staking-related public good applications selected by CSM Committee",
       },
     ],
   },

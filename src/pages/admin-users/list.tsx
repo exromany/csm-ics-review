@@ -10,6 +10,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Pagination,
   PaginationContent,
   PaginationItem,
@@ -564,14 +569,23 @@ export const AdminUsersList = () => {
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">#{user.id}</TableCell>
                       <TableCell>
-                        <code className="text-sm bg-muted px-2 py-1 rounded">
-                          {user.address.slice(0, 8)}...{user.address.slice(-6)}
-                        </code>
-                        {user.id === identity?.id && (
-                          <Badge variant="outline" className="ml-2 text-xs">
-                            You
-                          </Badge>
-                        )}
+                        <div className="flex items-center gap-2">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <code className="text-sm bg-muted px-2 py-1 rounded cursor-help">
+                                {user.address.slice(0, 8)}...{user.address.slice(-6)}
+                              </code>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="font-mono text-xs">{user.address}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          {user.id === identity?.id && (
+                            <Badge variant="outline" className="text-xs">
+                              You
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <RoleBadge role={user.role} />
