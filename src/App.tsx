@@ -5,7 +5,7 @@ import routerBindings, {
   UnsavedChangesNotifier,
 } from "@refinedev/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router";
+import { HashRouter, Route, Routes } from "react-router";
 import { WagmiConfig } from "wagmi";
 import "./App.css";
 import { Layout } from "./components/layout";
@@ -31,7 +31,7 @@ function App() {
           enableSystem
           disableTransitionOnChange
         >
-          <BrowserRouter>
+          <HashRouter>
             <Refine
               dataProvider={dataProvider}
               routerProvider={routerBindings}
@@ -95,7 +95,7 @@ function App() {
               <DocumentTitleHandler />
             </Refine>
             <Toaster />
-          </BrowserRouter>
+          </HashRouter>
         </ThemeProvider>
       </QueryClientProvider>
     </WagmiConfig>
