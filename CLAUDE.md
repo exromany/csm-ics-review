@@ -17,7 +17,7 @@ The project uses `pnpm` as the package manager. Key commands:
 ```
 src/
 ├── components/          # React components
-│   ├── ui/             # shadcn/ui components
+│   ├── ui/             # shadcn/ui components (sonner, tooltip, etc.)
 │   ├── layout/         # Layout components (header, menu)
 │   ├── scoring/        # Form scoring UI components
 │   └── breadcrumb/     # Navigation breadcrumbs
@@ -49,11 +49,12 @@ This is a **CSM ICS Admin Panel** built with Refine framework for managing Indiv
 - **Refine Core** - Main framework providing data fetching, routing, authentication
 - **SIWE (Sign-In with Ethereum)** - Web3 authentication using Ethereum wallets
 - **Wagmi + Viem** - Ethereum wallet connection and interaction
-- **React Router v7** - Client-side routing
+- **React Router v7** - Client-side routing with HashRouter for GitHub Pages compatibility
 - **Vite** - Build tool and dev server
 - **TypeScript** - Type checking (strict mode enabled)
 - **Tailwind CSS** - Styling framework
 - **shadcn/ui** - Preferred UI component library (pre-configured)
+- **Sonner** - Toast notification system
 - **React Query** - Server state management
 
 ## API Integration
@@ -180,6 +181,17 @@ VITE_DEBUG_MODE=true
 - Comprehensive form validation and rejection suggestions
 - Mobile-responsive design using Tailwind CSS
 - Icon-based scoring interface with visual feedback
+- Toast notifications with Sonner for user feedback
+- HashRouter configuration for GitHub Pages deployment compatibility
+
+## Deployment
+
+### GitHub Pages
+The application includes automated GitHub Pages deployment via GitHub Actions:
+- Triggers on pushes to `main` branch
+- Builds the project with `pnpm build`
+- Deploys to GitHub Pages using HashRouter for proper routing
+- Workflow file: `.github/workflows/deploy.yml`
 
 ## Additional Features
 
@@ -191,5 +203,7 @@ VITE_DEBUG_MODE=true
 - **Rejection Helpers** - Pre-defined rejection reasons and suggestions
 - **Responsive Design** - Mobile-first approach with Tailwind CSS
 - **Error Handling** - Comprehensive error states and user feedback
+- **Toast Notifications** - Sonner-based toast system for user feedback
+- **Tooltips** - Address and UI element tooltips for enhanced UX
 - **Type Safety** - Full TypeScript coverage with strict mode
 - **Performance** - Optimized with React Query caching and pagination

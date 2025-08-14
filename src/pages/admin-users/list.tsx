@@ -310,6 +310,20 @@ export const AdminUsersList = () => {
     setCurrentPage(newPage);
   };
 
+  // Show loading state while identity is being fetched
+  if (identity === undefined) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">Loading...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   // Only show to supervisors
   if (identity?.role !== 'SUPERVISOR') {
     return (
