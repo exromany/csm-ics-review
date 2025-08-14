@@ -1,6 +1,7 @@
 import { useCreate, useNavigation } from "@refinedev/core";
 import { useState } from "react";
-import { ArrowLeft, UserPlus, AlertCircle, CheckCircle } from "lucide-react";
+import { ArrowLeft, UserPlus, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 import type { AdminUserCreateDto } from "../../types/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,6 @@ export const AdminUserCreate = () => {
     active: true,
   });
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<boolean>(false);
 
   const isValidEthereumAddress = (address: string) => {
     return /^0x[a-fA-F0-9]{40}$/.test(address);
@@ -27,7 +27,6 @@ export const AdminUserCreate = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccess(false);
 
     // Validation
     if (!formData.address) {
@@ -45,10 +44,8 @@ export const AdminUserCreate = () => {
       values: formData,
     }, {
       onSuccess: () => {
-        setSuccess(true);
-        setTimeout(() => {
-          list("admin-users");
-        }, 2000);
+        toast.success("User created successfully");
+        list("admin-users");
       },
       onError: (error: any) => {
         if (error?.status === 409) {
@@ -74,28 +71,6 @@ export const AdminUserCreate = () => {
   const handleActiveChange = (value: string) => {
     setFormData(prev => ({ ...prev, active: value === "true" }));
   };
-
-  if (success) {
-    return (
-      <div className="space-y-6">
-        <Card className="max-w-md mx-auto">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <CheckCircle className="h-12 w-12 text-green-500 mb-4" />
-            <h3 className="text-lg font-medium mb-2 text-green-700">User Created Successfully</h3>
-            <p className="text-green-600 text-center mb-4">
-              The new admin user has been added to the system.
-            </p>
-            <Button
-              onClick={() => list("admin-users")}
-              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-            >
-              View Users List
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">

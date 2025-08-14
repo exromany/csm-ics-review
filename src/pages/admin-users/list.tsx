@@ -1,6 +1,7 @@
 import { useList, useUpdate, useNavigation, useGetIdentity } from "@refinedev/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Users, Plus, Shield, Eye, EyeOff, Loader2, UserCheck, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import type { AdminUserItemDto, AdminIdentity } from "../../types/api";
 import { Badge } from "@/components/ui/badge";
@@ -223,6 +224,7 @@ export const AdminUsersList = () => {
             return newMap;
           });
           setTogglingUserId(null);
+          toast.success("User status updated successfully");
         },
         onError: () => {
           // Revert optimistic update on error

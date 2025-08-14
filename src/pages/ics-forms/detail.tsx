@@ -2,6 +2,7 @@ import { useOne, useUpdate, useNavigation, useGetIdentity } from "@refinedev/cor
 import { useParams } from "react-router";
 import { useState } from "react";
 import React from "react";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   CheckCircle,
@@ -182,6 +183,10 @@ export const IcsFormDetail = () => {
       {
         onSuccess: () => {
           setHasChanges(false);
+          toast.success("Form review updated successfully");
+          setTimeout(() => {
+            list("ics-forms");
+          }, 1000);
         },
       }
     );

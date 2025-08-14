@@ -17,6 +17,7 @@ import { authProvider } from "./providers/authProvider";
 import { dataProvider } from "./providers/dataProvider";
 import { ThemeProvider } from "./providers/themeProvider";
 import { config } from "./providers/wagmiConfig";
+import { Toaster } from "./components/ui/sonner";
 
 const queryClient = new QueryClient();
 
@@ -46,8 +47,8 @@ function App() {
                 },
                 {
                   name: "admin-users",
-                  list: "/admin/users",
-                  create: "/admin/users/create",
+                  list: "/users",
+                  create: "/users/create",
                   meta: {
                     label: "User Management",
                   },
@@ -77,11 +78,11 @@ function App() {
                             element={<IcsFormDetail />}
                           />
                           <Route
-                            path="/admin/users"
+                            path="/users"
                             element={<AdminUsersList />}
                           />
                           <Route
-                            path="/admin/users/create"
+                            path="/users/create"
                             element={<AdminUserCreate />}
                           />
                         </Routes>
@@ -93,6 +94,7 @@ function App() {
               <UnsavedChangesNotifier />
               <DocumentTitleHandler />
             </Refine>
+            <Toaster />
           </BrowserRouter>
         </ThemeProvider>
       </QueryClientProvider>
