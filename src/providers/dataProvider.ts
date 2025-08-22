@@ -67,113 +67,58 @@ export const dataProvider: DataProvider = {
   getApiUrl: () => API_BASE_URL,
 
   // Get list of resources with pagination and filters
+  // Uses direct API field names - no transformations needed!
   getList: async ({ resource, pagination, filters, sorters }) => {
+    const params: Record<string, string | number | boolean> = {};
+
+    // Pagination - direct pass through
+    if (pagination) {
+      params.page = pagination.current || 1;
+      params.pageSize = pagination.pageSize || 20;
+    }
+
+    // Filters - direct pass through, no field name transformations!
+    if (filters) {
+      filters.forEach((filter) => {
+        const logicalFilter = filter as LogicalFilter;
+        if (logicalFilter.value !== undefined && logicalFilter.value !== null && logicalFilter.value !== '') {
+          // Direct assignment - field names match API exactly
+          params[logicalFilter.field] = logicalFilter.value;
+        }
+      });
+    }
+
+    // Sorting - direct pass through
+    if (sorters && sorters.length > 0) {
+      const sorter = sorters[0];
+      params.sortBy = sorter.field;
+      params.sortOrder = sorter.order || 'asc';
+    }
+
+    // Determine API endpoint based on resource
+    const endpoint = resource === "admin-users" ? "/admin/users" : `/admin/${resource}`;
+
+    const { data } = await axiosInstance.request({
+      method: "GET",
+      url: endpoint,
+      params,
+    });
+
+    // Handle different response types
+    let responseData: AdminIcsFormListResponseDto | AdminUserListResponseDto;
+    
     if (resource === "ics-forms") {
-      const params: Record<string, string | number | boolean> = {};
-
-      if (pagination) {
-        params.page = pagination.current || 1;
-        params.pageSize = pagination.pageSize || 20;
-      }
-
-      // Handle filters
-      if (filters) {
-        filters.forEach((filter) => {
-          const logicalFilter = filter as LogicalFilter;
-          if (logicalFilter.field === "status" && logicalFilter.value) {
-            params.status = logicalFilter.value;
-          }
-          if (logicalFilter.field === "mainAddress" && logicalFilter.value) {
-            params.mainAddress = logicalFilter.value;
-          }
-          if (logicalFilter.field === "issued" && typeof logicalFilter.value === 'boolean') {
-            params.issued = logicalFilter.value;
-          }
-          if (logicalFilter.field === "outdated" && typeof logicalFilter.value === 'boolean') {
-            params.outdated = logicalFilter.value;
-          }
-          if (logicalFilter.field === "createdAfter" && logicalFilter.value) {
-            params.createdAfter = logicalFilter.value;
-          }
-          if (logicalFilter.field === "createdBefore" && logicalFilter.value) {
-            params.createdBefore = logicalFilter.value;
-          }
-          if (logicalFilter.field === "updatedAfter" && logicalFilter.value) {
-            params.updatedAfter = logicalFilter.value;
-          }
-          if (logicalFilter.field === "updatedBefore" && logicalFilter.value) {
-            params.updatedBefore = logicalFilter.value;
-          }
-        });
-      }
-
-      // Handle sorting
-      if (sorters && sorters.length > 0) {
-        const sorter = sorters[0];
-        params.sortBy = sorter.field;
-        params.sortOrder = sorter.order || 'asc';
-      }
-
-      const { data } = await axiosInstance.request({
-        method: "GET",
-        url: `/admin/${resource}`,
-        params,
-      });
-
-      const response = data as AdminIcsFormListResponseDto;
-
-      return {
-        data: response.items as any,
-        total: response.pagination.itemCount,
-      };
+      responseData = data as AdminIcsFormListResponseDto;
+    } else if (resource === "admin-users") {
+      responseData = data as AdminUserListResponseDto;  
+    } else {
+      throw new Error(`Resource ${resource} not supported`);
     }
 
-    if (resource === "admin-users") {
-      const params: Record<string, string | number | boolean> = {};
-
-      if (pagination) {
-        params.page = pagination.current || 1;
-        params.pageSize = pagination.pageSize || 20;
-      }
-
-      // Handle filters
-      if (filters) {
-        filters.forEach((filter) => {
-          const logicalFilter = filter as LogicalFilter;
-          if (logicalFilter.field === "role" && logicalFilter.value) {
-            params.role = logicalFilter.value;
-          }
-          if (logicalFilter.field === "active" && typeof logicalFilter.value === 'boolean') {
-            params.active = logicalFilter.value;
-          }
-          if (logicalFilter.field === "address" && logicalFilter.value) {
-            params.address = logicalFilter.value;
-          }
-        });
-      }
-
-      // Handle sorting
-      if (sorters && sorters.length > 0) {
-        const sorter = sorters[0];
-        params.sortBy = sorter.field;
-        params.sortOrder = sorter.order || 'asc';
-      }
-
-      const { data } = await axiosInstance.request({
-        method: "GET",
-        url: `/admin/users`,
-        params,
-      });
-
-      const response = data as AdminUserListResponseDto;
-
-      return {
-        data: response.items as any,
-        total: response.pagination.itemCount,
-      };
-    }
-
-    throw new Error(`Resource ${resource} not supported`);
+    return {
+      data: responseData.items as any,
+      total: responseData.pagination.itemCount,
+    };
   },
 
   // Get one resource by ID

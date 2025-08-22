@@ -88,17 +88,17 @@ export interface AdminIcsFormUpdateDto {
   issued?: boolean;
 }
 
-// Utility types for frontend
+// Utility types for frontend - using direct API field names
 export interface IcsFormFilters {
   status?: IcsFormStatus;
-  address?: string; // API uses 'address' not 'mainAddress' for filtering
-  issued?: boolean;
-  outdated?: boolean;
-  startDate?: string; // API uses 'startDate' not 'createdAfter'
-  endDate?: string; // API uses 'endDate' not 'createdBefore'
+  address?: string;      // API: address (filters by main or additional addresses)
+  issued?: boolean;      // API: issued
+  outdated?: boolean;    // API: outdated
+  startDate?: string;    // API: startDate
+  endDate?: string;      // API: endDate
   page?: number;
   pageSize?: number;
-  sortBy?: 'createdAt' | 'updatedAt' | 'mainAddress' | 'status' | 'outdated';
+  sortBy?: 'id' | 'createdAt' | 'updatedAt' | 'mainAddress' | 'status' | 'issued' | 'outdated';
   sortOrder?: 'asc' | 'desc';
 }
 
@@ -146,11 +146,11 @@ export interface AdminUserCreateDto {
   active: boolean;
 }
 
-// User filtering and sorting types
+// User filtering and sorting types - using direct API field names
 export interface AdminUserFilters {
-  role?: 'VIEWER' | 'REVIEWER' | 'SUPERVISOR';
-  active?: boolean;
-  address?: string;
+  role?: 'VIEWER' | 'REVIEWER' | 'SUPERVISOR';  // API: role
+  active?: boolean;                             // API: active
+  address?: string;                             // API: address
   page?: number;
   pageSize?: number;
   sortBy?: 'id' | 'address' | 'role' | 'active' | 'createdAt' | 'updatedAt';

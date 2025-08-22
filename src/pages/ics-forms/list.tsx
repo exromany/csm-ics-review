@@ -14,6 +14,7 @@ import {
   Archive,
 } from "lucide-react";
 import type { AdminIcsFormItemDto, IcsFormStatus } from "../../types/api";
+import { useTableFilters, type FilterValues } from "../../hooks/useTableFilters";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -137,13 +138,18 @@ const getPageNumbers = (
 export const IcsFormsList = () => {
   const { show } = useNavigation();
   const dataProvider = useDataProvider();
-  const [filters, setFilters] = useState<{
-    status?: IcsFormStatus;
-    mainAddress?: string;
-    issued?: boolean;
-    outdated?: boolean;
-    dateRange?: { from?: string; to?: string };
-  }>({});
+  const { buildFilters, hasActiveFilters, clearAllFilters } = useTableFilters();
+  
+  // Using direct API field names - no transformations needed!
+  const [filterValues, setFilterValues] = useState<FilterValues>({
+    status: undefined,        // API: status
+    address: '',              // API: address (was mainAddress)
+    issued: undefined,        // API: issued  
+    outdated: undefined,      // API: outdated
+    startDate: '',            // API: startDate (was dateRange.from)
+    endDate: ''               // API: endDate (was dateRange.to)
+  });
+  
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<SortField>("createdAt");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
@@ -156,50 +162,8 @@ export const IcsFormsList = () => {
       current: currentPage,
       pageSize,
     },
-    filters: [
-      ...(filters.status
-        ? [{ field: "status", operator: "eq" as const, value: filters.status }]
-        : []),
-      ...(filters.mainAddress
-        ? [
-            {
-              field: "mainAddress",
-              operator: "contains" as const,
-              value: filters.mainAddress,
-            },
-          ]
-        : []),
-      ...(typeof filters.issued === "boolean"
-        ? [{ field: "issued", operator: "eq" as const, value: filters.issued }]
-        : []),
-      ...(typeof filters.outdated === "boolean"
-        ? [
-            {
-              field: "outdated",
-              operator: "eq" as const,
-              value: filters.outdated,
-            },
-          ]
-        : []),
-      ...(filters.dateRange?.from
-        ? [
-            {
-              field: "createdAfter",
-              operator: "eq" as const,
-              value: filters.dateRange.from,
-            },
-          ]
-        : []),
-      ...(filters.dateRange?.to
-        ? [
-            {
-              field: "createdBefore",
-              operator: "eq" as const,
-              value: filters.dateRange.to,
-            },
-          ]
-        : []),
-    ],
+    // Clean, simple filter building using direct API field names
+    filters: buildFilters(filterValues),
     sorters: [
       {
         field: sortField,
@@ -209,27 +173,27 @@ export const IcsFormsList = () => {
   });
 
   const handleStatusFilter = (status?: IcsFormStatus) => {
-    setFilters((prev) => ({ ...prev, status }));
+    setFilterValues((prev) => ({ ...prev, status }));
     setCurrentPage(1);
   };
 
   const handleAddressSearch = (address: string) => {
-    setFilters((prev) => ({ ...prev, mainAddress: address }));
+    setFilterValues((prev) => ({ ...prev, address }));
     setCurrentPage(1);
   };
 
   const handleIssuedFilter = (issued?: boolean) => {
-    setFilters((prev) => ({ ...prev, issued }));
+    setFilterValues((prev) => ({ ...prev, issued }));
     setCurrentPage(1);
   };
 
   const handleOutdatedFilter = (outdated?: boolean) => {
-    setFilters((prev) => ({ ...prev, outdated }));
+    setFilterValues((prev) => ({ ...prev, outdated }));
     setCurrentPage(1);
   };
 
-  const handleDateRangeFilter = (from?: string, to?: string) => {
-    setFilters((prev) => ({ ...prev, dateRange: { from, to } }));
+  const handleDateRangeFilter = (startDate: string, endDate: string) => {
+    setFilterValues((prev) => ({ ...prev, startDate, endDate }));
     setCurrentPage(1);
   };
 
@@ -244,7 +208,7 @@ export const IcsFormsList = () => {
   };
 
   const clearFilters = () => {
-    setFilters({});
+    setFilterValues(clearAllFilters(filterValues));
     setCurrentPage(1);
   };
 
@@ -264,63 +228,8 @@ export const IcsFormsList = () => {
     setIsExporting(true);
 
     try {
-      // Build filters for API call
-      const exportFilters = [
-        ...(filters.status
-          ? [
-              {
-                field: "status",
-                operator: "eq" as const,
-                value: filters.status,
-              },
-            ]
-          : []),
-        ...(filters.mainAddress
-          ? [
-              {
-                field: "mainAddress",
-                operator: "contains" as const,
-                value: filters.mainAddress,
-              },
-            ]
-          : []),
-        ...(typeof filters.issued === "boolean"
-          ? [
-              {
-                field: "issued",
-                operator: "eq" as const,
-                value: filters.issued,
-              },
-            ]
-          : []),
-        ...(typeof filters.outdated === "boolean"
-          ? [
-              {
-                field: "outdated",
-                operator: "eq" as const,
-                value: filters.outdated,
-              },
-            ]
-          : []),
-        ...(filters.dateRange?.from
-          ? [
-              {
-                field: "createdAfter",
-                operator: "eq" as const,
-                value: filters.dateRange.from,
-              },
-            ]
-          : []),
-        ...(filters.dateRange?.to
-          ? [
-              {
-                field: "createdBefore",
-                operator: "eq" as const,
-                value: filters.dateRange.to,
-              },
-            ]
-          : []),
-      ];
+      // Use the same clean filter building for export
+      const exportFilters = buildFilters(filterValues);
 
       // Fetch all matching records (no pagination)
       const exportData = await dataProvider().getList<AdminIcsFormItemDto>({
@@ -341,14 +250,14 @@ export const IcsFormsList = () => {
       // Generate CSV content
       const csvContent = generateCsvContent(exportData.data);
 
-      // Generate filename based on active filters
+      // Generate filename based on active filters (using direct API field names)
       const filename = generateFilename({
-        status: filters.status,
-        address: filters.mainAddress,
-        issued: filters.issued,
-        outdated: filters.outdated,
-        startDate: filters.dateRange?.from,
-        endDate: filters.dateRange?.to,
+        status: filterValues.status as IcsFormStatus,
+        address: filterValues.address as string,
+        issued: filterValues.issued as boolean,
+        outdated: filterValues.outdated as boolean,
+        startDate: filterValues.startDate as string,
+        endDate: filterValues.endDate as string,
       });
 
       // Download the file
@@ -410,7 +319,7 @@ export const IcsFormsList = () => {
               <label className="text-sm font-medium">Status</label>
               <div className="flex flex-wrap gap-2">
                 <Button
-                  variant={!filters.status ? "default" : "outline"}
+                  variant={!filterValues.status ? "default" : "outline"}
                   size="sm"
                   onClick={() => handleStatusFilter()}
                   className="text-xs"
@@ -420,7 +329,7 @@ export const IcsFormsList = () => {
                 {["REVIEW", "APPROVED", "REJECTED"].map((status) => (
                   <Button
                     key={status}
-                    variant={filters.status === status ? "default" : "outline"}
+                    variant={filterValues.status === status ? "default" : "outline"}
                     size="sm"
                     onClick={() => handleStatusFilter(status as IcsFormStatus)}
                     className="text-xs"
@@ -437,7 +346,7 @@ export const IcsFormsList = () => {
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant={
-                    typeof filters.issued === "undefined"
+                    typeof filterValues.issued === "undefined"
                       ? "default"
                       : "outline"
                   }
@@ -448,7 +357,7 @@ export const IcsFormsList = () => {
                   All
                 </Button>
                 <Button
-                  variant={filters.issued === true ? "default" : "outline"}
+                  variant={filterValues.issued === true ? "default" : "outline"}
                   size="sm"
                   onClick={() => handleIssuedFilter(true)}
                   className="text-xs"
@@ -456,7 +365,7 @@ export const IcsFormsList = () => {
                   Issued
                 </Button>
                 <Button
-                  variant={filters.issued === false ? "default" : "outline"}
+                  variant={filterValues.issued === false ? "default" : "outline"}
                   size="sm"
                   onClick={() => handleIssuedFilter(false)}
                   className="text-xs"
@@ -472,7 +381,7 @@ export const IcsFormsList = () => {
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant={
-                    typeof filters.outdated === "undefined"
+                    typeof filterValues.outdated === "undefined"
                       ? "default"
                       : "outline"
                   }
@@ -483,7 +392,7 @@ export const IcsFormsList = () => {
                   All
                 </Button>
                 <Button
-                  variant={filters.outdated === false ? "default" : "outline"}
+                  variant={filterValues.outdated === false ? "default" : "outline"}
                   size="sm"
                   onClick={() => handleOutdatedFilter(false)}
                   className="text-xs"
@@ -491,7 +400,7 @@ export const IcsFormsList = () => {
                   Current
                 </Button>
                 <Button
-                  variant={filters.outdated === true ? "default" : "outline"}
+                  variant={filterValues.outdated === true ? "default" : "outline"}
                   size="sm"
                   onClick={() => handleOutdatedFilter(true)}
                   className="text-xs"
@@ -512,7 +421,7 @@ export const IcsFormsList = () => {
                   id="address-search"
                   type="text"
                   placeholder="0x..."
-                  value={filters.mainAddress || ""}
+                  value={(filterValues.address as string) || ""}
                   onChange={(e) => handleAddressSearch(e.target.value)}
                   className="pl-10"
                 />
@@ -521,27 +430,27 @@ export const IcsFormsList = () => {
 
             {/* Date Range Filter */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Submission Date</label>
+              <label className="text-sm font-medium">Submission Date Range</label>
               <div className="flex flex-col sm:flex-row gap-2">
                 <Input
                   type="date"
-                  value={filters.dateRange?.from || ""}
+                  value={(filterValues.startDate as string) || ""}
                   onChange={(e) =>
-                    handleDateRangeFilter(e.target.value, filters.dateRange?.to)
+                    handleDateRangeFilter(e.target.value, filterValues.endDate as string)
                   }
-                  placeholder="From"
+                  placeholder="Start Date"
                   className="text-xs min-w-0"
                 />
                 <Input
                   type="date"
-                  value={filters.dateRange?.to || ""}
+                  value={(filterValues.endDate as string) || ""}
                   onChange={(e) =>
                     handleDateRangeFilter(
-                      filters.dateRange?.from,
+                      filterValues.startDate as string,
                       e.target.value
                     )
                   }
-                  placeholder="To"
+                  placeholder="End Date"
                   className="text-xs min-w-0"
                 />
               </div>
@@ -927,9 +836,7 @@ export const IcsFormsList = () => {
             <FileText className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">No ICS forms found</h3>
             <p className="text-muted-foreground text-center">
-              {Object.keys(filters).some(
-                (key) => filters[key as keyof typeof filters]
-              )
+              {hasActiveFilters(filterValues)
                 ? "Try adjusting your filters to see more results."
                 : "No ICS forms have been submitted yet."}
             </p>

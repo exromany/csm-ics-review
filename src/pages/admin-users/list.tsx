@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Users, Plus, Shield, Eye, EyeOff, Loader2, UserCheck, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import type { AdminUserItemDto, AdminIdentity } from "../../types/api";
+import { useTableFilters, type FilterValues } from "../../hooks/useTableFilters";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -132,11 +133,15 @@ export const AdminUsersList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [togglingUserId, setTogglingUserId] = useState<number | null>(null);
   const [optimisticUpdates, setOptimisticUpdates] = useState<Map<number, boolean>>(new Map());
-  const [filters, setFilters] = useState<{
-    role?: 'VIEWER' | 'REVIEWER' | 'SUPERVISOR';
-    active?: boolean;
-    address?: string;
-  }>({});
+  // Get table filter building utility
+  const { buildFilters } = useTableFilters();
+  
+  // Filter state using direct API field names
+  const [filterValues, setFilterValues] = useState<FilterValues>({
+    role: undefined,        // API: role
+    active: undefined,      // API: active
+    address: ''             // API: address
+  });
   const [sortField, setSortField] = useState<UserSortField>('createdAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [pageSize, setPageSize] = useState(20);
@@ -147,23 +152,7 @@ export const AdminUsersList = () => {
       current: currentPage,
       pageSize,
     },
-    filters: [
-      ...(filters.role
-        ? [{ field: "role", operator: "eq" as const, value: filters.role }]
-        : []),
-      ...(typeof filters.active === "boolean"
-        ? [{ field: "active", operator: "eq" as const, value: filters.active }]
-        : []),
-      ...(filters.address
-        ? [
-            {
-              field: "address",
-              operator: "contains" as const,
-              value: filters.address,
-            },
-          ]
-        : []),
-    ],
+    filters: buildFilters(filterValues),
     sorters: [
       {
         field: sortField,
@@ -268,17 +257,17 @@ export const AdminUsersList = () => {
   };
 
   const handleRoleFilter = (role?: 'VIEWER' | 'REVIEWER' | 'SUPERVISOR') => {
-    setFilters(prev => ({ ...prev, role }));
+    setFilterValues(prev => ({ ...prev, role }));
     setCurrentPage(1);
   };
 
   const handleActiveFilter = (active?: boolean) => {
-    setFilters(prev => ({ ...prev, active }));
+    setFilterValues(prev => ({ ...prev, active }));
     setCurrentPage(1);
   };
 
   const handleAddressSearch = (address: string) => {
-    setFilters(prev => ({ ...prev, address }));
+    setFilterValues(prev => ({ ...prev, address }));
     setCurrentPage(1);
   };
 
@@ -293,7 +282,11 @@ export const AdminUsersList = () => {
   };
 
   const clearFilters = () => {
-    setFilters({});
+    setFilterValues({
+      role: undefined,
+      active: undefined,
+      address: ''
+    });
     setCurrentPage(1);
   };
 
@@ -384,7 +377,7 @@ export const AdminUsersList = () => {
             <div className="space-y-2">
               <label className="text-sm font-medium">Role</label>
               <Select
-                value={filters.role || "all"}
+                value={(filterValues.role as string) || "all"}
                 onValueChange={(value) =>
                   handleRoleFilter(
                     value === "all"
@@ -411,7 +404,7 @@ export const AdminUsersList = () => {
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant={
-                    typeof filters.active === "undefined"
+                    typeof filterValues.active === "undefined"
                       ? "default"
                       : "outline"
                   }
@@ -422,7 +415,7 @@ export const AdminUsersList = () => {
                   All
                 </Button>
                 <Button
-                  variant={filters.active === true ? "default" : "outline"}
+                  variant={filterValues.active === true ? "default" : "outline"}
                   size="sm"
                   onClick={() => handleActiveFilter(true)}
                   className="text-xs"
@@ -430,7 +423,7 @@ export const AdminUsersList = () => {
                   Active
                 </Button>
                 <Button
-                  variant={filters.active === false ? "default" : "outline"}
+                  variant={filterValues.active === false ? "default" : "outline"}
                   size="sm"
                   onClick={() => handleActiveFilter(false)}
                   className="text-xs"
@@ -451,7 +444,7 @@ export const AdminUsersList = () => {
                   id="address-search"
                   type="text"
                   placeholder="0x..."
-                  value={filters.address || ""}
+                  value={filterValues.address as string || ""}
                   onChange={(e) => handleAddressSearch(e.target.value)}
                   className="pl-10"
                 />
