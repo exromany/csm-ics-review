@@ -27,6 +27,9 @@ _.sln
 CLAUDE.local.md
 .claude
 .mcp.json
+.playwright
+.playwright-mcp
+.vercel
 
 # Environment files
 .env

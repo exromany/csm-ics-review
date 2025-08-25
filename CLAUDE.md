@@ -20,7 +20,8 @@ src/
 │   ├── ui/             # shadcn/ui components (sonner, tooltip, etc.)
 │   ├── layout/         # Layout components (header, menu)
 │   ├── scoring/        # Form scoring UI components
-│   └── breadcrumb/     # Navigation breadcrumbs
+│   ├── breadcrumb/     # Navigation breadcrumbs
+│   └── theme-toggle.tsx # Theme switching component
 ├── pages/              # Application pages
 │   ├── ics-forms/      # ICS forms list and detail pages
 │   ├── admin-users/    # Admin user management
@@ -30,14 +31,20 @@ src/
 │   ├── dataProvider.ts # Refine data provider
 │   ├── themeProvider.tsx # Dark/light theme provider
 │   └── wagmiConfig.ts  # Wagmi wallet configuration
+├── hooks/              # Custom React hooks
+│   └── useTableFilters.ts # Advanced table filtering hook
 ├── types/              # TypeScript type definitions
 │   └── api.ts          # OpenAPI generated types
 ├── config/             # Configuration files
-│   └── scoringConfig.tsx # ICS scoring criteria
+│   ├── scoringConfig.tsx # ICS scoring criteria
+│   └── tableConfig.ts  # Table configuration for filters and sorting
 ├── utils/              # Utility functions
 │   ├── csvExport.ts    # CSV export functionality
 │   ├── scoring.ts      # Scoring calculations
-│   └── rejectionSuggestions.ts # Form rejection helpers
+│   ├── rejectionSuggestions.ts # Form rejection helpers
+│   └── networkUtils.ts # Network switching utilities
+├── lib/                # Utility libraries
+│   └── utils.ts        # Common utility functions
 └── assets/             # Static assets
     └── icons/ics-scores/ # Scoring criteria icons
 ```
@@ -47,15 +54,16 @@ src/
 This is a **CSM ICS Admin Panel** built with Refine framework for managing Individual Customer Staker form submissions. Key technologies:
 
 - **Refine Core** - Main framework providing data fetching, routing, authentication
-- **SIWE (Sign-In with Ethereum)** - Web3 authentication using Ethereum wallets
-- **Wagmi + Viem** - Ethereum wallet connection and interaction
+- **SIWE (Sign-In with Ethereum)** - Web3 authentication using Ethereum wallets with network detection
+- **Wagmi + Viem** - Ethereum wallet connection, interaction, and network switching
 - **React Router v7** - Client-side routing with HashRouter for GitHub Pages compatibility
 - **Vite** - Build tool and dev server
 - **TypeScript** - Type checking (strict mode enabled)
 - **Tailwind CSS** - Styling framework
 - **shadcn/ui** - Preferred UI component library (pre-configured)
-- **Sonner** - Toast notification system
+- **Sonner** - Toast notification system for user feedback
 - **React Query** - Server state management
+- **Custom Hooks** - Advanced table filtering and data management
 
 ## API Integration
 
@@ -83,23 +91,37 @@ This is a **CSM ICS Admin Panel** built with Refine framework for managing Indiv
 
 ### Authentication Flow (SIWE)
 1. User connects Ethereum wallet (MetaMask, WalletConnect, etc.)
-2. App generates SIWE message for signing
-3. User signs message with their wallet
-4. Backend validates signature and returns JWT
-5. JWT stored and used for API authentication
+2. App detects current network and switches to required network if necessary
+3. App generates SIWE message for signing
+4. User signs message with their wallet
+5. Backend validates signature and returns JWT
+6. JWT stored and used for API authentication
 
 ### Form Review Workflow
-1. **Forms List** (`/`) - Paginated table with status filters and search
+1. **Forms List** (`/`) - Paginated table with advanced filters and search
 2. **Form Detail** (`/forms/:id`) - Review individual form submissions
-3. **Scoring System** - 15+ criteria with point-based scoring
-4. **Status Management** - REVIEW/APPROVED/REJECTED with comments
-5. **Real-time Updates** - Changes saved via API
+3. **Scoring System** - 17 criteria with point-based scoring and visual feedback
+4. **Status Management** - REVIEW/APPROVED/REJECTED with comments and toast notifications
+5. **Real-time Updates** - Changes saved via API with immediate feedback
 
 ### Data Flow
-- **Forms List**: Fetches paginated data with filters (status, address)
+- **Forms List**: Fetches paginated data with advanced filters (status, address, dates)
 - **Form Detail**: Loads individual form with scores/comments
 - **Review Updates**: PATCH requests to update status, scores, comments
 - **Authentication**: JWT tokens in Authorization headers
+- **Network Management**: Automatic network detection and switching
+
+### Table Configuration System
+- **Dynamic Filters**: `src/config/tableConfig.ts` defines filterable fields by resource
+- **Custom Hook**: `src/hooks/useTableFilters.ts` manages filter state and API integration
+- **Filter Types**: Support for text, select, boolean, and date range filters
+- **API Integration**: Filter parameters mapped directly to backend API expectations
+
+### Network Management
+- **Multi-Network Support**: Ethereum Mainnet (Chain ID: 1) and Hoodi (Chain ID: 560048)
+- **Automatic Detection**: `src/utils/networkUtils.ts` handles network validation
+- **Switching Logic**: Prompts users to switch networks when required
+- **Error Handling**: Toast notifications for network-related issues
 
 ## Component Patterns
 
@@ -110,16 +132,18 @@ This is a **CSM ICS Admin Panel** built with Refine framework for managing Indiv
 - Consistent with Tailwind CSS utility classes
 
 ### Key Components
-- **Login Page** - Wallet connection and SIWE authentication
-- **IcsFormsList** - Data table with filtering and pagination
-- **IcsFormDetail** - Form review interface with scoring
-- **Layout** - Header with user info and logout
+- **Login Page** - Wallet connection, network detection, and SIWE authentication
+- **IcsFormsList** - Data table with advanced filtering, sorting, and pagination
+- **IcsFormDetail** - Form review interface with scoring and toast feedback
+- **Layout** - Header with user info, network status, and logout
 - **StatusBadge** - Visual status indicators
+- **Theme Toggle** - Dark/light mode switching with persistence
+- **Toast System** - User feedback via Sonner notifications
 
 ### Scoring System
 17 scoring criteria with visual icons and point values:
 - **EthStaker Lists** - Solo staker verification
-- **StakeCat Lists** - Community staker verification  
+- **StakeCat Lists** - Community staker verification
 - **Obol Techne Credentials** - DVT operator certification
 - **CSM Testnet/Mainnet** - Community staking participation
 - **SDVT Testnet/Mainnet** - Distributed validator participation
@@ -170,28 +194,33 @@ VITE_DEBUG_MODE=true
 ## Development Notes
 
 - Backend must be running at configured `VITE_API_BASE_URL`
-- Wallet connection required for authentication
-- Admin role determines access (REVIEWER/SUPERVISOR)
+- Wallet connection required for authentication with network validation
+- Admin role determines access (VIEWER\REVIEWER/SUPERVISOR)
 - All API responses follow OpenAPI schema in `types/api.ts`
+- Multi-network support: Ethereum Mainnet and Hoodi testnet
 - TailwindCSS for consistent styling with dark/light theme support
-- Error handling includes automatic logout on 401/403
+- Error handling includes automatic logout on 401/403 and network error management
 - Environment variables provide TypeScript definitions in `vite-env.d.ts`
+- Advanced table filtering system with configurable filters per resource
 - CSV export functionality for form data
-- Real-time form status updates and scoring
+- Real-time form status updates and scoring with toast notifications
 - Comprehensive form validation and rejection suggestions
 - Mobile-responsive design using Tailwind CSS
 - Icon-based scoring interface with visual feedback
-- Toast notifications with Sonner for user feedback
+- Toast notifications with Sonner for comprehensive user feedback
 - HashRouter configuration for GitHub Pages deployment compatibility
+- Custom hooks for table filtering and state management
 
 ## Deployment
 
 ### GitHub Pages
 The application includes automated GitHub Pages deployment via GitHub Actions:
 - Triggers on pushes to `main` branch
+- Uses Node.js 18 with pnpm for building
 - Builds the project with `pnpm build`
 - Deploys to GitHub Pages using HashRouter for proper routing
 - Workflow file: `.github/workflows/deploy.yml`
+- Deployment artifact created from `./dist` directory
 
 ## Additional Features
 

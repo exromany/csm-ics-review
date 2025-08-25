@@ -14,20 +14,23 @@ pnpm dev
 
 ## Key Features
 
-- **Web3 Authentication** - Sign-In with Ethereum (SIWE)
+- **Web3 Authentication** - Sign-In with Ethereum (SIWE) with network detection
 - **Form Review** - 17-criteria scoring system with visual interface
-- **Advanced Filtering** - Status, address, score, and date filters
+- **Advanced Filtering** - Dynamic table filters with custom hooks (status, address, date ranges)
+- **Network Switching** - Automatic network detection and switching (Ethereum Mainnet/Hoodi)
 - **CSV Export** - Export form data and scores
-- **Real-time Updates** - Live status and score changes
-- **Dark/Light Theme** - Responsive design
+- **Real-time Updates** - Live status and score changes with toast notifications
+- **Enhanced UX** - Toast notifications, tooltips, and improved error handling
+- **Dark/Light Theme** - Responsive design with theme persistence
 
 ## Technology Stack
 
-- **Refine** - Data management framework
+- **Refine** - Data management framework with built-in table filtering
 - **React + TypeScript** - Frontend with strict typing
-- **Wagmi/Viem** - Ethereum wallet integration
+- **Wagmi/Viem** - Ethereum wallet integration with network switching
 - **Tailwind CSS + shadcn/ui** - Styling and components
 - **React Query** - Server state management
+- **Sonner** - Toast notification system
 
 ## Development
 
@@ -38,6 +41,11 @@ npx tsc --noEmit  # Type checking
 npx eslint src --ext .ts,.tsx  # Linting
 ```
 
+### Configuration
+
+- **Network Support**: Ethereum Mainnet (Chain ID: 1) and Hoodi (Chain ID: 560048)
+- **Environment**: Copy `.env.example` to `.env` and configure required variables
+
 ## Architecture
 
 ```text
@@ -45,16 +53,18 @@ src/
 ├── components/   # React components (UI, layout, scoring)
 ├── pages/        # Application pages (forms, admin, auth)
 ├── providers/    # Context providers (auth, data, theme)
+├── hooks/        # Custom React hooks (table filtering)
 ├── types/        # TypeScript definitions
-├── utils/        # Utility functions
-└── config/       # Configuration files
+├── utils/        # Utility functions (CSV export, network switching)
+└── config/       # Configuration files (scoring, table config)
 ```
 
 ## Authentication Flow
 
-1. Connect Ethereum wallet
-2. Sign SIWE message
-3. Access admin panel with verified wallet
+1. Connect Ethereum wallet (with automatic network detection)
+2. Switch to required network if necessary
+3. Sign SIWE message
+4. Access admin panel with verified wallet and network
 
 ## Deployment
 
