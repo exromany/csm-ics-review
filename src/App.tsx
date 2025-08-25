@@ -18,8 +18,30 @@ import { dataProvider } from "./providers/dataProvider";
 import { ThemeProvider } from "./providers/themeProvider";
 import { config } from "./providers/wagmiConfig";
 import { Toaster } from "./components/ui/sonner";
+import { ComponentProps } from "react";
 
 const queryClient = new QueryClient();
+
+const documentTitleHandler: ComponentProps<
+  typeof DocumentTitleHandler
+>["handler"] = ({ resource, action, params, pathname }) => {
+  const appName = import.meta.env.VITE_APP_NAME || "CSM ICS Admin Panel";
+  let title = appName;
+
+  if (resource?.meta?.label) {
+    title = resource.meta.label;
+    if (action === "show" && params?.id) {
+      title = `${title} #${params.id}`;
+    } else if (action === "create") {
+      title = `Create ${title}`;
+    }
+    title = `${title} - ${appName}`;
+  } else if (pathname === "/login") {
+    title = `Login - ${appName}`;
+  }
+
+  return title;
+};
 
 function App() {
   return (
@@ -77,10 +99,7 @@ function App() {
                             path="/forms/:id"
                             element={<IcsFormDetail />}
                           />
-                          <Route
-                            path="/users"
-                            element={<AdminUsersList />}
-                          />
+                          <Route path="/users" element={<AdminUsersList />} />
                           <Route
                             path="/users/create"
                             element={<AdminUserCreate />}
@@ -92,7 +111,7 @@ function App() {
                 />
               </Routes>
               <UnsavedChangesNotifier />
-              <DocumentTitleHandler />
+              <DocumentTitleHandler handler={documentTitleHandler} />
             </Refine>
             <Toaster />
           </HashRouter>
