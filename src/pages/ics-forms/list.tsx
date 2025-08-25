@@ -139,17 +139,17 @@ export const IcsFormsList = () => {
   const { show } = useNavigation();
   const dataProvider = useDataProvider();
   const { buildFilters, hasActiveFilters, clearAllFilters } = useTableFilters();
-  
+
   // Using direct API field names - no transformations needed!
   const [filterValues, setFilterValues] = useState<FilterValues>({
-    status: undefined,        // API: status
-    address: '',              // API: address (was mainAddress)
-    issued: undefined,        // API: issued  
-    outdated: undefined,      // API: outdated
-    startDate: '',            // API: startDate (was dateRange.from)
-    endDate: ''               // API: endDate (was dateRange.to)
+    status: undefined, // API: status
+    address: "", // API: address (was mainAddress)
+    issued: undefined, // API: issued
+    outdated: undefined, // API: outdated
+    startDate: "", // API: startDate (was dateRange.from)
+    endDate: "", // API: endDate (was dateRange.to)
   });
-  
+
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<SortField>("createdAt");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
@@ -270,7 +270,6 @@ export const IcsFormsList = () => {
     }
   };
 
-
   const totalPages = Math.ceil((data?.total || 0) / pageSize);
   const pageNumbers = getPageNumbers(currentPage, totalPages);
 
@@ -329,7 +328,9 @@ export const IcsFormsList = () => {
                 {["REVIEW", "APPROVED", "REJECTED"].map((status) => (
                   <Button
                     key={status}
-                    variant={filterValues.status === status ? "default" : "outline"}
+                    variant={
+                      filterValues.status === status ? "default" : "outline"
+                    }
                     size="sm"
                     onClick={() => handleStatusFilter(status as IcsFormStatus)}
                     className="text-xs"
@@ -365,7 +366,9 @@ export const IcsFormsList = () => {
                   Issued
                 </Button>
                 <Button
-                  variant={filterValues.issued === false ? "default" : "outline"}
+                  variant={
+                    filterValues.issued === false ? "default" : "outline"
+                  }
                   size="sm"
                   onClick={() => handleIssuedFilter(false)}
                   className="text-xs"
@@ -392,7 +395,9 @@ export const IcsFormsList = () => {
                   All
                 </Button>
                 <Button
-                  variant={filterValues.outdated === false ? "default" : "outline"}
+                  variant={
+                    filterValues.outdated === false ? "default" : "outline"
+                  }
                   size="sm"
                   onClick={() => handleOutdatedFilter(false)}
                   className="text-xs"
@@ -400,7 +405,9 @@ export const IcsFormsList = () => {
                   Current
                 </Button>
                 <Button
-                  variant={filterValues.outdated === true ? "default" : "outline"}
+                  variant={
+                    filterValues.outdated === true ? "default" : "outline"
+                  }
                   size="sm"
                   onClick={() => handleOutdatedFilter(true)}
                   className="text-xs"
@@ -430,13 +437,18 @@ export const IcsFormsList = () => {
 
             {/* Date Range Filter */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Submission Date Range</label>
+              <label className="text-sm font-medium">
+                Submission Date Range
+              </label>
               <div className="flex flex-col sm:flex-row gap-2">
                 <Input
                   type="date"
                   value={(filterValues.startDate as string) || ""}
                   onChange={(e) =>
-                    handleDateRangeFilter(e.target.value, filterValues.endDate as string)
+                    handleDateRangeFilter(
+                      e.target.value,
+                      filterValues.endDate as string
+                    )
                   }
                   placeholder="Start Date"
                   className="text-xs min-w-0"
@@ -654,7 +666,9 @@ export const IcsFormsList = () => {
                               </code>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p className="font-mono text-xs">{form.form.mainAddress}</p>
+                              <p className="font-mono text-xs">
+                                {form.form.mainAddress}
+                              </p>
                             </TooltipContent>
                           </Tooltip>
                         </TableCell>
@@ -697,11 +711,16 @@ export const IcsFormsList = () => {
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <code className="text-xs block truncate cursor-help">
-                                    {`${form.lastReviewer.slice(0, 6)}...${form.lastReviewer.slice(-4)}`}
+                                    {`${form.lastReviewer.slice(
+                                      0,
+                                      6
+                                    )}...${form.lastReviewer.slice(-4)}`}
                                   </code>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p className="font-mono text-xs">{form.lastReviewer}</p>
+                                  <p className="font-mono text-xs">
+                                    {form.lastReviewer}
+                                  </p>
                                 </TooltipContent>
                               </Tooltip>
                             ) : (
@@ -748,9 +767,8 @@ export const IcsFormsList = () => {
               </div>
             </div>
           )}
-
           {/* Enhanced Pagination */}
-          {data?.total && (
+          {(data?.total && (
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 border-t">
               <div className="flex items-center gap-4">
                 <div className="text-sm text-muted-foreground">
@@ -825,7 +843,8 @@ export const IcsFormsList = () => {
                 </Pagination>
               )}
             </div>
-          )}
+          )) ||
+            null}
         </CardContent>
       </Card>
 
