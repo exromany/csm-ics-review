@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-The project uses `pnpm` as the package manager. Key commands:
+The project uses `yarn` as the package manager. Key commands:
 
-- `pnpm dev` - Start development server (uses Refine CLI)
-- `pnpm build` - Build for production (runs TypeScript compilation + Refine build)
-- `pnpm start` - Start production server
+- `yarn dev` - Start development server (uses Refine CLI)
+- `yarn build` - Build for production (runs TypeScript compilation + Refine build)
+- `yarn start` - Start production server
 - `npx tsc --noEmit` - Type checking (no explicit typecheck script)
 - `npx eslint src --ext .ts,.tsx` - Lint TypeScript files
 
@@ -216,8 +216,8 @@ VITE_DEBUG_MODE=true
 ### GitHub Pages
 The application includes automated GitHub Pages deployment via GitHub Actions:
 - Triggers on pushes to `main` branch
-- Uses Node.js 18 with pnpm for building
-- Builds the project with `pnpm build`
+- Uses Node.js 18 with yarn for building
+- Builds the project with `yarn build`
 - Deploys to GitHub Pages using HashRouter for proper routing
 - Workflow file: `.github/workflows/deploy.yml`
 - Deployment artifact created from `./dist` directory

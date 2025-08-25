@@ -4,12 +4,12 @@ Admin panel for managing Individual Customer Staker form submissions with Web3 a
 
 ## Quick Start
 
-Prerequisites: Node.js 18+, pnpm, running backend at `http://localhost:3003`
+Prerequisites: Node.js 18+, yarn, running backend at `http://localhost:3003`
 
 ```bash
-pnpm install
+yarn install
 cp .env.example .env
-pnpm dev
+yarn dev
 ```
 
 ## Key Features
@@ -35,8 +35,8 @@ pnpm dev
 ## Development
 
 ```bash
-pnpm dev          # Start development server
-pnpm build        # Build for production
+yarn dev          # Start development server
+yarn build        # Build for production
 npx tsc --noEmit  # Type checking
 npx eslint src --ext .ts,.tsx  # Linting
 ```

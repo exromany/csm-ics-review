@@ -25,19 +25,13 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-        cache: 'pnpm'
-
-    - name: Enable Corepack
-      run: corepack enable
-
-    - name: Setup pnpm
-      run: corepack prepare pnpm@latest --activate
+        cache: 'yarn'
 
     - name: Install dependencies
-      run: pnpm install
+      run: yarn install
 
     - name: Build
-      run: pnpm build
+      run: yarn build
 
     - name: Setup Pages
       uses: actions/configure-pages@v5
