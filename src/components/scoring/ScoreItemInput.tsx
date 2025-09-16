@@ -60,26 +60,20 @@ const ScoreItemInput: React.FC<ScoreItemInputProps> = ({
     }
   }, [item, allScores, value]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = parseInt(e.target.value) || 0;
-    
-    // Hard validation (blocks invalid values)
-    if (validateScoreValue(item.id, newValue, item)) {
-      onChange(newValue);
-      setInputError(false);
-      
-      // Handle CSM testnet special validation
-      if (item.id === 'csmTestnet' && allScores) {
-        const circlesScore = allScores.circles || 0;
-        const validation = getCsmTestnetWarning(newValue, circlesScore);
-        setSoftWarning(validation.isValid ? null : validation.warning || null);
-        setWarningSeverity(validation.severity);
-      } else {
-        setSoftWarning(null);
-        setWarningSeverity('warning');
-      }
+  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newValue = parseInt(e.target.value);
+
+    // With dropdown, all values should be valid by design
+    onChange(newValue);
+    setInputError(false);
+
+    // Handle CSM testnet special validation
+    if (item.id === 'csmTestnet' && allScores) {
+      const circlesScore = allScores.circles || 0;
+      const validation = getCsmTestnetWarning(newValue, circlesScore);
+      setSoftWarning(validation.isValid ? null : validation.warning || null);
+      setWarningSeverity(validation.severity);
     } else {
-      setInputError(true);
       setSoftWarning(null);
       setWarningSeverity('warning');
     }
@@ -130,35 +124,38 @@ const ScoreItemInput: React.FC<ScoreItemInputProps> = ({
 
             <div className="flex items-center space-x-2 flex-shrink-0">
               <span className="text-xs text-muted-foreground">{getPointsDisplay()}</span>
-              <input
-                type="number"
-                min="0"
-                max={item.maxPoints}
+              <select
                 value={value}
                 onChange={handleChange}
                 disabled={disabled}
                 className={`
-                  w-14 px-2 py-1 text-sm text-center border rounded
-                  ${inputError 
-                    ? 'border-red-300 dark:border-red-700 focus:ring-red-500 focus:border-red-500 dark:focus:border-red-400' 
+                  w-16 px-2 py-1 text-sm text-center border rounded
+                  ${inputError
+                    ? 'border-red-300 dark:border-red-700 focus:ring-red-500 focus:border-red-500 dark:focus:border-red-400'
                     : 'border-input focus:ring-ring focus:border-ring'
                   }
-                  ${disabled 
-                    ? 'bg-muted cursor-not-allowed' 
+                  ${disabled
+                    ? 'bg-muted cursor-not-allowed'
                     : 'bg-background'
                   }
                   text-foreground
                   focus:outline-none focus:ring-1
                 `}
-              />
+              >
+                {item.allowedValues.map((allowedValue) => (
+                  <option key={allowedValue} value={allowedValue}>
+                    {allowedValue}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
           {inputError && (
             <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-              {item.id === 'csmTestnet' 
-                ? getCsmTestnetValidationError(value) || `Value must be between 0 and ${item.maxPoints}`
-                : `Value must be between 0 and ${item.maxPoints}`
+              {item.id === 'csmTestnet'
+                ? getCsmTestnetValidationError(value) || `Value must be one of: ${item.allowedValues.join(', ')}`
+                : `Value must be one of: ${item.allowedValues.join(', ')}`
               }
             </p>
           )}

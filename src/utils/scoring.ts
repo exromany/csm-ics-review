@@ -85,15 +85,13 @@ export function isQualified(totalScore: number): boolean {
 }
 
 /**
- * Validate if a score value is within the allowed range for an item
+ * Validate if a score value is within the allowed values for an item
  */
 export function validateScoreValue(
   itemId: keyof IcsScoresDto,
   value: number,
   scoreItem?: ScoreItem
 ): boolean {
-  if (value < 0) return false;
-  
   // Find the score item if not provided
   if (!scoreItem) {
     for (const group of SCORE_SOURCES) {
@@ -107,8 +105,8 @@ export function validateScoreValue(
 
   if (!scoreItem) return false;
 
-  // Check against max points
-  return value <= scoreItem.maxPoints;
+  // Check if value is in allowed values array
+  return scoreItem.allowedValues.includes(value);
 }
 
 /**
@@ -120,6 +118,14 @@ export function getScoreItem(itemId: keyof IcsScoresDto): ScoreItem | undefined 
     if (item) return item;
   }
   return undefined;
+}
+
+/**
+ * Get allowed values for a score item
+ */
+export function getAllowedValues(itemId: keyof IcsScoresDto): number[] {
+  const item = getScoreItem(itemId);
+  return item ? item.allowedValues : [];
 }
 
 /**
@@ -143,11 +149,9 @@ export function getScorePercentage(totalScore: number): number {
  * Get validation error message for CSM testnet field
  */
 export function getCsmTestnetValidationError(value: number): string | null {
-  if (value < 0 || value > 5) {
-    return 'Value must be between 0 and 5';
-  }
-  if (value !== 0 && value !== 4 && value !== 5) {
-    return 'CSM testnet can only be 0, 4, or 5 points';
+  const allowedValues = getAllowedValues('csmTestnet');
+  if (!allowedValues.includes(value)) {
+    return `CSM testnet can only be ${allowedValues.join(', ')} points`;
   }
   return null;
 }
@@ -160,20 +164,22 @@ export function getCsmTestnetWarning(csmTestnetScore: number, circlesScore: numb
   warning?: string;
   severity: 'error' | 'warning';
 } {
-  // Values 1, 2, 3 are not valid options - show red error-style warning
-  if (csmTestnetScore === 1 || csmTestnetScore === 2 || csmTestnetScore === 3) {
+  const allowedValues = getAllowedValues('csmTestnet');
+
+  // Check if value is not in allowed values - show red error-style warning
+  if (!allowedValues.includes(csmTestnetScore)) {
     return {
       isValid: false,
-      warning: 'CSM testnet can only be 0, 4, or 5 points',
+      warning: `CSM testnet can only be ${allowedValues.join(', ')} points`,
       severity: 'error'
     };
   }
-  
+
   // If CSM testnet is 0, it's always valid
   if (csmTestnetScore === 0) {
     return { isValid: true, severity: 'warning' };
   }
-  
+
   // If Circles has no points, CSM testnet should be 4 (or 0)
   if (circlesScore === 0 && csmTestnetScore === 5) {
     return {
@@ -182,7 +188,7 @@ export function getCsmTestnetWarning(csmTestnetScore: number, circlesScore: numb
       severity: 'warning'
     };
   }
-  
+
   // If Circles has points, CSM testnet should be 5 for optimal scoring
   if (circlesScore > 0 && csmTestnetScore === 4) {
     return {
@@ -191,7 +197,7 @@ export function getCsmTestnetWarning(csmTestnetScore: number, circlesScore: numb
       severity: 'warning'
     };
   }
-  
+
   return { isValid: true, severity: 'warning' };
 }
 

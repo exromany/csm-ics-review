@@ -1,21 +1,21 @@
-import { ReactNode } from 'react';
-import type { IcsScoresDto } from '../types/api';
+import { ReactNode } from "react";
+import type { IcsScoresDto } from "../types/api";
 
-import EthStakerIcon from '../assets/icons/ics-scores/ethstaker.png';
-import StakeCatIcon from '../assets/icons/ics-scores/stakecat.png';
-import ObolIcon from '../assets/icons/ics-scores/obol.png';
-import SSVIcon from '../assets/icons/ics-scores/ssv.png';
-import CSMIcon from '../assets/icons/ics-scores/csm.png';
-import SDVTIcon from '../assets/icons/ics-scores/sdvt.png';
-import HumanPassportIcon from '../assets/icons/ics-scores/human-passport.png';
-import CirclesIcon from '../assets/icons/ics-scores/circles.png';
-import DiscordIcon from '../assets/icons/ics-scores/discord.png';
-import XTwitterIcon from '../assets/icons/ics-scores/x.png';
-import AragonIcon from '../assets/icons/ics-scores/aragon.png';
-import SnapshotIcon from '../assets/icons/ics-scores/snapshot.png';
-import GalxeIcon from '../assets/icons/ics-scores/galxe.png';
-import HighSignalIcon from '../assets/icons/ics-scores/high-signal.png';
-import GitPOAPsIcon from '../assets/icons/ics-scores/git-poap.png';
+import EthStakerIcon from "../assets/icons/ics-scores/ethstaker.png";
+import StakeCatIcon from "../assets/icons/ics-scores/stakecat.png";
+import ObolIcon from "../assets/icons/ics-scores/obol.png";
+import SSVIcon from "../assets/icons/ics-scores/ssv.png";
+import CSMIcon from "../assets/icons/ics-scores/csm.png";
+import SDVTIcon from "../assets/icons/ics-scores/sdvt.png";
+import HumanPassportIcon from "../assets/icons/ics-scores/human-passport.png";
+import CirclesIcon from "../assets/icons/ics-scores/circles.png";
+import DiscordIcon from "../assets/icons/ics-scores/discord.png";
+import XTwitterIcon from "../assets/icons/ics-scores/x.png";
+import AragonIcon from "../assets/icons/ics-scores/aragon.png";
+import SnapshotIcon from "../assets/icons/ics-scores/snapshot.png";
+import GalxeIcon from "../assets/icons/ics-scores/galxe.png";
+import HighSignalIcon from "../assets/icons/ics-scores/high-signal.png";
+import GitPOAPsIcon from "../assets/icons/ics-scores/git-poap.png";
 
 export type IcsScoresItem = keyof IcsScoresDto;
 
@@ -34,6 +34,7 @@ export type ScoreItem = {
   icon: string;
   points: number | string;
   maxPoints: number;
+  allowedValues: number[];
   description: ReactNode;
 };
 
@@ -54,6 +55,7 @@ export const SCORE_SOURCES: ScoreSource[] = [
         icon: EthStakerIcon,
         points: 6,
         maxPoints: 6,
+        allowedValues: [0, 6],
         description:
           "Submitted address is present in the latest EthStaker Solo Stakers list as a deposit address, and not excluded following the a Sybil analysis of the list",
       },
@@ -63,6 +65,7 @@ export const SCORE_SOURCES: ScoreSource[] = [
         icon: StakeCatIcon,
         points: 6,
         maxPoints: 6,
+        allowedValues: [0, 6],
         description:
           "Submitted address is present in the latest StakeCat Solo Stakers list (Gnosischain-Solo-Stakers or Solo-Stakers-B), and not excluded following a Sybil analysis of the list",
       },
@@ -72,6 +75,7 @@ export const SCORE_SOURCES: ScoreSource[] = [
         icon: ObolIcon,
         points: "4-6",
         maxPoints: 6,
+        allowedValues: [0, 4, 5, 6],
         description: (
           <>
             Submitted address has the Obol Techne credential assigned:
@@ -87,6 +91,7 @@ export const SCORE_SOURCES: ScoreSource[] = [
         icon: SSVIcon,
         points: 7,
         maxPoints: 7,
+        allowedValues: [0, 7],
         description:
           "Submitted address is present in the SSV Verified Operators list and does not belong to a professional operator",
       },
@@ -96,6 +101,7 @@ export const SCORE_SOURCES: ScoreSource[] = [
         icon: CSMIcon,
         points: "4-5",
         maxPoints: 5,
+        allowedValues: [0, 4, 5],
         description: (
           <>
             4 points are assigned in case:
@@ -115,6 +121,7 @@ export const SCORE_SOURCES: ScoreSource[] = [
         icon: CSMIcon,
         points: 6,
         maxPoints: 6,
+        allowedValues: [0, 6],
         description: (
           <>
             Submitted address belongs to a Node Operator that has been active on
@@ -130,6 +137,7 @@ export const SCORE_SOURCES: ScoreSource[] = [
         icon: SDVTIcon,
         points: 5,
         maxPoints: 5,
+        allowedValues: [0, 5],
         description:
           "Submitted address participated in and completed the entire duration of a Simple DVT testnet with Obol, SSV, or Safestake as a home or community staker",
       },
@@ -139,6 +147,7 @@ export const SCORE_SOURCES: ScoreSource[] = [
         icon: SDVTIcon,
         points: 7,
         maxPoints: 7,
+        allowedValues: [0, 7],
         description:
           "Submitted address is actively participating as a home or community staker in the Lido Simple DVT Module on mainnet at the time of application submission",
       },
@@ -158,6 +167,7 @@ export const SCORE_SOURCES: ScoreSource[] = [
         icon: HumanPassportIcon,
         points: "3-8",
         maxPoints: 8,
+        allowedValues: [0, 3, 8],
         description:
           "Submitted address has the corresponding score according to a Lido customized scoring system on Human Passport",
       },
@@ -167,6 +177,7 @@ export const SCORE_SOURCES: ScoreSource[] = [
         icon: CirclesIcon,
         points: 4,
         maxPoints: 4,
+        allowedValues: [0, 4],
         description:
           "Submitted address is verified via a dedicated Lido group on Circles",
       },
@@ -176,6 +187,7 @@ export const SCORE_SOURCES: ScoreSource[] = [
         icon: DiscordIcon,
         points: 2,
         maxPoints: 2,
+        allowedValues: [0, 2],
         description: (
           <>
             • Submitted account is registered no less than 1 year ago
@@ -190,6 +202,7 @@ export const SCORE_SOURCES: ScoreSource[] = [
         icon: XTwitterIcon,
         points: 1,
         maxPoints: 1,
+        allowedValues: [0, 1],
         description: (
           <>
             • Submitted account is registered no less than 1 year ago
@@ -214,6 +227,7 @@ export const SCORE_SOURCES: ScoreSource[] = [
         icon: AragonIcon,
         points: 2,
         maxPoints: 2,
+        allowedValues: [0, 2],
         description:
           "Submitted address has voted at least twice with more than 100 LDO",
       },
@@ -223,6 +237,7 @@ export const SCORE_SOURCES: ScoreSource[] = [
         icon: SnapshotIcon,
         points: 1,
         maxPoints: 1,
+        allowedValues: [0, 1],
         description:
           "Submitted address has voted at least three times with more than 100 LDO",
       },
@@ -232,6 +247,7 @@ export const SCORE_SOURCES: ScoreSource[] = [
         icon: GalxeIcon,
         points: "4-5",
         maxPoints: 5,
+        allowedValues: [0, 4, 5],
         description: (
           <>
             Submitted address has a score on the Lido Galxe space:
@@ -246,6 +262,7 @@ export const SCORE_SOURCES: ScoreSource[] = [
         icon: HighSignalIcon,
         points: "2-5",
         maxPoints: 5,
+        allowedValues: [0, 2, 3, 4, 5],
         description: (
           <>
             Submitted address has a score on the Lido High Signal space:
@@ -262,6 +279,7 @@ export const SCORE_SOURCES: ScoreSource[] = [
         icon: GitPOAPsIcon,
         points: 2,
         maxPoints: 2,
+        allowedValues: [0, 2],
         description:
           "Submitted address has at least one GitPOAP for contribution to the staking-related public good applications selected by CSM Committee",
       },
