@@ -1,20 +1,3 @@
-import { useList, useNavigation, useDataProvider } from "@refinedev/core";
-import { useState } from "react";
-import {
-  Search,
-  FileText,
-  CheckCircle,
-  Eye,
-  Edit,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  Filter,
-  Download,
-  Archive,
-} from "lucide-react";
-import type { AdminIcsFormItemDto, IcsFormStatus } from "../../types/api";
-import { useTableFilters, type FilterValues } from "../../hooks/useTableFilters";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +8,23 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -38,27 +38,29 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useDataProvider, useList, useNavigation } from "@refinedev/core";
 import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
-  PaginationLink,
-  PaginationEllipsis,
-} from "@/components/ui/pagination";
+  Archive,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  CheckCircle,
+  Download,
+  Edit,
+  Eye,
+  FileText,
+  Filter,
+  RotateCcw,
+  Search,
+} from "lucide-react";
+import { useState } from "react";
+import { usePersistentTableState } from "../../hooks/usePersistentTableState";
+import { useTableFilters } from "../../hooks/useTableFilters";
+import type { AdminIcsFormItemDto, IcsFormStatus } from "../../types/api";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
+  downloadCsv,
   generateCsvContent,
   generateFilename,
-  downloadCsv,
 } from "../../utils/csvExport";
 
 const StatusBadge = ({ status }: { status: IcsFormStatus }) => {
@@ -74,17 +76,6 @@ const StatusBadge = ({ status }: { status: IcsFormStatus }) => {
     </Badge>
   );
 };
-
-
-type SortField =
-  | "id"
-  | "status"
-  | "createdAt"
-  | "updatedAt"
-  | "mainAddress"
-  | "issued"
-  | "outdated";
-type SortOrder = "asc" | "desc";
 
 // Helper function to generate page numbers array for pagination
 const getPageNumbers = (
@@ -138,23 +129,22 @@ const getPageNumbers = (
 export const IcsFormsList = () => {
   const { show } = useNavigation();
   const dataProvider = useDataProvider();
-  const { buildFilters, hasActiveFilters, clearAllFilters } = useTableFilters();
+  const { buildFilters, hasActiveFilters } = useTableFilters();
 
-  // Using direct API field names - no transformations needed!
-  const [filterValues, setFilterValues] = useState<FilterValues>({
-    status: undefined, // API: status
-    address: "", // API: address (was mainAddress)
-    issued: undefined, // API: issued
-    outdated: undefined, // API: outdated
-    startDate: "", // API: startDate (was dateRange.from)
-    endDate: "", // API: endDate (was dateRange.to)
-  });
+  const {
+    filterValues,
+    sortField,
+    sortOrder,
+    currentPage,
+    pageSize,
+    updateFilterValues,
+    updateSorting,
+    updateCurrentPage,
+    updatePageSize,
+    resetTableState,
+  } = usePersistentTableState();
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [sortField, setSortField] = useState<SortField>("createdAt");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [isExporting, setIsExporting] = useState(false);
-  const [pageSize, setPageSize] = useState(20);
 
   const { data, isLoading } = useList<AdminIcsFormItemDto>({
     resource: "ics-forms",
@@ -162,7 +152,6 @@ export const IcsFormsList = () => {
       current: currentPage,
       pageSize,
     },
-    // Clean, simple filter building using direct API field names
     filters: buildFilters(filterValues),
     sorters: [
       {
@@ -173,53 +162,40 @@ export const IcsFormsList = () => {
   });
 
   const handleStatusFilter = (status?: IcsFormStatus) => {
-    setFilterValues((prev) => ({ ...prev, status }));
-    setCurrentPage(1);
+    updateFilterValues((prev) => ({ ...prev, status }));
   };
 
   const handleAddressSearch = (address: string) => {
-    setFilterValues((prev) => ({ ...prev, address }));
-    setCurrentPage(1);
+    updateFilterValues((prev) => ({ ...prev, address }));
   };
 
   const handleIssuedFilter = (issued?: boolean) => {
-    setFilterValues((prev) => ({ ...prev, issued }));
-    setCurrentPage(1);
+    updateFilterValues((prev) => ({ ...prev, issued }));
   };
 
   const handleOutdatedFilter = (outdated?: boolean) => {
-    setFilterValues((prev) => ({ ...prev, outdated }));
-    setCurrentPage(1);
+    updateFilterValues((prev) => ({ ...prev, outdated }));
   };
 
   const handleDateRangeFilter = (startDate: string, endDate: string) => {
-    setFilterValues((prev) => ({ ...prev, startDate, endDate }));
-    setCurrentPage(1);
+    updateFilterValues((prev) => ({ ...prev, startDate, endDate }));
   };
 
-  const handleSort = (field: SortField) => {
+  const handleSort = (field: typeof sortField) => {
     if (sortField === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+      updateSorting(field, sortOrder === "asc" ? "desc" : "asc");
     } else {
-      setSortField(field);
-      setSortOrder("asc");
+      updateSorting(field, "asc");
     }
-    setCurrentPage(1);
   };
 
   const clearFilters = () => {
-    setFilterValues(clearAllFilters(filterValues));
-    setCurrentPage(1);
+    resetTableState();
   };
 
   const handlePageSizeChange = (newPageSize: string) => {
     const newSize = parseInt(newPageSize);
-    const newPage = Math.min(
-      currentPage,
-      Math.ceil((data?.total || 0) / newSize)
-    );
-    setPageSize(newSize);
-    setCurrentPage(newPage);
+    updatePageSize(newSize);
   };
 
   const handleCsvExport = async () => {
@@ -228,7 +204,6 @@ export const IcsFormsList = () => {
     setIsExporting(true);
 
     try {
-      // Use the same clean filter building for export
       const exportFilters = buildFilters(filterValues);
 
       // Fetch all matching records (no pagination)
@@ -247,10 +222,8 @@ export const IcsFormsList = () => {
         ],
       });
 
-      // Generate CSV content
       const csvContent = generateCsvContent(exportData.data);
 
-      // Generate filename based on active filters (using direct API field names)
       const filename = generateFilename({
         status: filterValues.status as IcsFormStatus,
         address: filterValues.address as string,
@@ -260,11 +233,9 @@ export const IcsFormsList = () => {
         endDate: filterValues.endDate as string,
       });
 
-      // Download the file
       downloadCsv(csvContent, filename);
     } catch (error) {
       console.error("CSV export failed:", error);
-      // Could add toast notification here if available
     } finally {
       setIsExporting(false);
     }
@@ -282,7 +253,6 @@ export const IcsFormsList = () => {
         </p>
       </div>
 
-      {/* Enhanced Filters */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -305,8 +275,14 @@ export const IcsFormsList = () => {
                 <Download className="w-4 h-4 mr-2" />
                 {isExporting ? "Exporting..." : "Download CSV"}
               </Button>
-              <Button variant="outline" size="sm" onClick={clearFilters}>
-                Clear All
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearFilters}
+                title="Reset all filters, sorting, and pagination to defaults"
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Reset Filters
               </Button>
             </div>
           </div>
@@ -471,7 +447,6 @@ export const IcsFormsList = () => {
         </CardContent>
       </Card>
 
-      {/* Table */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">
@@ -767,8 +742,7 @@ export const IcsFormsList = () => {
               </div>
             </div>
           )}
-          {/* Enhanced Pagination */}
-          {(data?.total && (
+          {data?.total && (
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 border-t">
               <div className="flex items-center gap-4">
                 <div className="text-sm text-muted-foreground">
@@ -801,7 +775,7 @@ export const IcsFormsList = () => {
                     <PaginationItem>
                       <PaginationPrevious
                         onClick={() =>
-                          setCurrentPage(Math.max(1, currentPage - 1))
+                          updateCurrentPage(Math.max(1, currentPage - 1))
                         }
                         className={
                           currentPage === 1
@@ -817,7 +791,7 @@ export const IcsFormsList = () => {
                           <PaginationEllipsis />
                         ) : (
                           <PaginationLink
-                            onClick={() => setCurrentPage(pageNum)}
+                            onClick={() => updateCurrentPage(pageNum)}
                             isActive={pageNum === currentPage}
                             className="cursor-pointer"
                           >
@@ -830,7 +804,9 @@ export const IcsFormsList = () => {
                     <PaginationItem>
                       <PaginationNext
                         onClick={() =>
-                          setCurrentPage(Math.min(totalPages, currentPage + 1))
+                          updateCurrentPage(
+                            Math.min(totalPages, currentPage + 1)
+                          )
                         }
                         className={
                           currentPage === totalPages
@@ -843,12 +819,10 @@ export const IcsFormsList = () => {
                 </Pagination>
               )}
             </div>
-          )) ||
-            null}
+          )}
         </CardContent>
       </Card>
 
-      {/* Empty State */}
       {!isLoading && (!data?.data || data.data.length === 0) && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
