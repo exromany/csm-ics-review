@@ -1,4 +1,9 @@
-import { useOne, useUpdate, useNavigation, useGetIdentity } from "@refinedev/core";
+import {
+  useOne,
+  useUpdate,
+  useNavigation,
+  useGetIdentity,
+} from "@refinedev/core";
 import { useParams } from "react-router";
 import { useState } from "react";
 import React from "react";
@@ -19,6 +24,7 @@ import {
   Eye,
   Shield,
   Archive,
+  Copy,
 } from "lucide-react";
 import type {
   AdminIcsFormDetailDto,
@@ -289,6 +295,38 @@ export const IcsFormDetail = () => {
   }
 
   const form = data.data;
+
+  // Helper function to collect all ethereum addresses
+  const getAllAddresses = () => {
+    const addresses = [form.form.mainAddress];
+    if (form.form.additionalAddresses) {
+      addresses.push(...form.form.additionalAddresses);
+    }
+    return addresses;
+  };
+
+  // Command generator functions
+  const generatePythonCommand = (addresses: string[]) => {
+    return `python main.py ${addresses.join(" ")}`;
+  };
+
+  const generateUvRunCommand = (addresses: string[]) => {
+    return `uv run ics check ${addresses.join(" ")}`;
+  };
+
+  const generateAddressesOnly = (addresses: string[]) => {
+    return addresses.join(" ");
+  };
+
+  // Copy to clipboard function
+  const copyToClipboard = async (text: string, commandType: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${commandType} copied to clipboard`);
+    } catch (err) {
+      toast.error("Failed to copy to clipboard");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -659,6 +697,55 @@ export const IcsFormDetail = () => {
                   )}
               </div>
             </div>
+
+            <div className="border-t border-slate-200/50 pt-6 mt-6">
+              <div className="text-sm font-semibold text-slate-700 mb-4">
+                Copy validation command
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const addresses = getAllAddresses();
+                    const command = generatePythonCommand(addresses);
+                    copyToClipboard(command, "main.py command");
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <Copy className="w-4 h-4" />
+                  main.py
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const addresses = getAllAddresses();
+                    const command = generateUvRunCommand(addresses);
+                    copyToClipboard(command, "ics check command");
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <Copy className="w-4 h-4" />
+                  ics check
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const addresses = getAllAddresses();
+                    const addressesOnly = generateAddressesOnly(addresses);
+                    copyToClipboard(addressesOnly, "addresses");
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <Copy className="w-4 h-4" />
+                  addresses
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -955,7 +1042,8 @@ export const IcsFormDetail = () => {
                       Form Outdated
                     </AlertTitle>
                     <AlertDescription className="text-amber-700 dark:text-amber-300">
-                      This form is outdated and has been replaced by a newer submission for the same address. It cannot be modified.
+                      This form is outdated and has been replaced by a newer
+                      submission for the same address. It cannot be modified.
                     </AlertDescription>
                   </Alert>
                 ) : isViewer ? (
