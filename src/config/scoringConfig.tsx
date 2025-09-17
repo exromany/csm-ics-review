@@ -167,7 +167,7 @@ export const SCORE_SOURCES: ScoreSource[] = [
         icon: HumanPassportIcon,
         points: "3-8",
         maxPoints: 8,
-        allowedValues: [0, 3, 8],
+        allowedValues: [0, 3, 4, 5, 6, 7, 8],
         description:
           "Submitted address has the corresponding score according to a Lido customized scoring system on Human Passport",
       },
