@@ -40,6 +40,7 @@ import {
 } from "../../utils/rejectionSuggestions";
 import ScoreGroupCard from "../../components/scoring/ScoreGroupCard";
 import TotalScoreCard from "../../components/scoring/TotalScoreCard";
+import { OtherFormsFromAddress } from "../../components/OtherFormsFromAddress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -748,6 +749,12 @@ export const IcsFormDetail = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Other Forms from Same Address Section */}
+        <OtherFormsFromAddress
+          currentFormId={form.id}
+          mainAddress={form.form.mainAddress}
+        />
 
         {/* Scoring Criteria Section */}
         <div className="mb-10">
