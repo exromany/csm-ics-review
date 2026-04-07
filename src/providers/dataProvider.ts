@@ -2,6 +2,8 @@ import { DataProvider, LogicalFilter } from "@refinedev/core";
 import type {
   AdminIcsFormListResponseDto,
   AdminIcsFormUpdateDto,
+  AdminDvtFormListResponseDto,
+  AdminDvtFormUpdateDto,
   AdminUserListResponseDto,
   AdminUserCreateDto,
 } from "../types/api";
@@ -105,12 +107,14 @@ export const dataProvider: DataProvider = {
     });
 
     // Handle different response types
-    let responseData: AdminIcsFormListResponseDto | AdminUserListResponseDto;
-    
+    let responseData: AdminIcsFormListResponseDto | AdminDvtFormListResponseDto | AdminUserListResponseDto;
+
     if (resource === "ics-forms") {
       responseData = data as AdminIcsFormListResponseDto;
+    } else if (resource === "dvt-forms") {
+      responseData = data as AdminDvtFormListResponseDto;
     } else if (resource === "admin-users") {
-      responseData = data as AdminUserListResponseDto;  
+      responseData = data as AdminUserListResponseDto;
     } else {
       throw new Error(`Resource ${resource} not supported`);
     }
@@ -129,6 +133,14 @@ export const dataProvider: DataProvider = {
         url: `/admin/${resource}/${id}`,
       });
 
+      return { data: data as any };
+    }
+
+    if (resource === "dvt-forms") {
+      const { data } = await axiosInstance.request({
+        method: "GET",
+        url: `/admin/${resource}/${id}`,
+      });
       return { data: data as any };
     }
 
@@ -153,6 +165,15 @@ export const dataProvider: DataProvider = {
         data: variables as AdminIcsFormUpdateDto,
       });
 
+      return { data: data as any };
+    }
+
+    if (resource === "dvt-forms") {
+      const { data } = await axiosInstance.request({
+        method: "PATCH",
+        url: `/admin/${resource}/${id}`,
+        data: variables as AdminDvtFormUpdateDto,
+      });
       return { data: data as any };
     }
 
