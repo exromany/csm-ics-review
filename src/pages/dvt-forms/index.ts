@@ -1,2 +1,2 @@
 export { DvtFormsList } from "./list";
-// export { DvtFormDetail } from "./detail";
+export { DvtFormDetail } from "./detail";
