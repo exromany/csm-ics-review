@@ -754,6 +754,9 @@ export const IcsFormDetail = () => {
         <OtherFormsFromAddress
           currentFormId={form.id}
           mainAddress={form.form.mainAddress}
+          resource="ics-forms"
+          basePath="/forms"
+          proofLabel="ICS Proof"
         />
 
         {/* Scoring Criteria Section */}
