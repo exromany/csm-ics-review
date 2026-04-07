@@ -52,7 +52,8 @@ export interface IcsScoresDto {
   gitPoaps?: number;
 }
 
-export type IcsFormStatus = 'REVIEW' | 'APPROVED' | 'REJECTED';
+export type FormStatus = 'REVIEW' | 'APPROVED' | 'REJECTED';
+export type IcsFormStatus = FormStatus;
 
 export interface AdminIcsFormItemDto {
   id: number;
@@ -154,5 +155,65 @@ export interface AdminUserFilters {
   page?: number;
   pageSize?: number;
   sortBy?: 'id' | 'address' | 'role' | 'active' | 'createdAt' | 'updatedAt';
+  sortOrder?: 'asc' | 'desc';
+}
+
+// DVT Form Types
+export interface DvtClusterMemberDataDto {
+  address: string;
+  discordHandle?: string;
+  telegramUsername?: string;
+}
+
+export interface DvtFormDataDto {
+  mainAddress: string;
+  discordLink: string;
+  telegramUsername?: string;
+  clusterMembers: DvtClusterMemberDataDto[];
+}
+
+export interface DvtCommentsDto {
+  reason?: string;
+  mainAddress?: string;
+  discordLink?: string;
+  telegramUsername?: string;
+  clusterMembers?: (string | null)[];
+}
+
+export interface AdminDvtFormItemDto {
+  id: number;
+  form: DvtFormDataDto;
+  status: FormStatus;
+  comments: DvtCommentsDto;
+  lastReviewer?: string | null;
+  issued: boolean;
+  outdated: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface AdminDvtFormListResponseDto {
+  items: AdminDvtFormItemDto[];
+  pagination: Pagination;
+}
+
+export type AdminDvtFormDetailDto = AdminDvtFormItemDto;
+
+export interface AdminDvtFormUpdateDto {
+  status: FormStatus;
+  comments?: DvtCommentsDto;
+  issued?: boolean;
+}
+
+export interface DvtFormFilters {
+  status?: FormStatus;
+  address?: string;
+  issued?: boolean;
+  outdated?: boolean;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  pageSize?: number;
+  sortBy?: 'id' | 'createdAt' | 'updatedAt' | 'mainAddress' | 'status' | 'issued' | 'outdated';
   sortOrder?: 'asc' | 'desc';
 }
