@@ -44,6 +44,21 @@ export const tableConfigs: Record<string, TableConfig> = {
       field: 'createdAt',
       order: 'desc'
     }
+  },
+  'dvt-forms': {
+    filters: {
+      status: 'select',
+      address: 'text',
+      issued: 'boolean',
+      outdated: 'boolean',
+      startDate: 'date',
+      endDate: 'date'
+    },
+    sortableFields: ['id', 'createdAt', 'updatedAt', 'mainAddress', 'status', 'issued', 'outdated'],
+    defaultSort: {
+      field: 'createdAt',
+      order: 'desc'
+    }
   }
 };
 
