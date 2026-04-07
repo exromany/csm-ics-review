@@ -1,6 +1,6 @@
 import { useLogout, useGetIdentity, useNavigation } from "@refinedev/core";
 import { useDisconnect } from "wagmi";
-import { LogOut, Users, FileText } from "lucide-react";
+import { LogOut, Users, FileText, Network } from "lucide-react";
 import type { AdminIdentity } from "../../types/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,17 @@ export const Menu = () => {
                 <FileText className="w-4 h-4 mr-2" />
                 ICS Forms
               </Button>
-              
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => list("dvt-forms")}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <Network className="w-4 h-4 mr-2" />
+                DVT Forms
+              </Button>
+
               {identity?.role === 'SUPERVISOR' && (
                 <Button
                   variant="ghost"

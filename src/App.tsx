@@ -12,6 +12,8 @@ import { Layout } from "./components/layout";
 import { AdminUserCreate, AdminUsersList } from "./pages/admin-users";
 import { IcsFormDetail } from "./pages/ics-forms/detail";
 import { IcsFormsList } from "./pages/ics-forms/list";
+import { DvtFormDetail } from "./pages/dvt-forms/detail";
+import { DvtFormsList } from "./pages/dvt-forms/list";
 import { Login } from "./pages/login";
 import { authProvider } from "./providers/authProvider";
 import { dataProvider } from "./providers/dataProvider";
@@ -68,6 +70,14 @@ function App() {
                   },
                 },
                 {
+                  name: "dvt-forms",
+                  list: "/dvt-forms",
+                  show: "/dvt-forms/:id",
+                  meta: {
+                    label: "DVT Forms",
+                  },
+                },
+                {
                   name: "admin-users",
                   list: "/users",
                   create: "/users/create",
@@ -98,6 +108,11 @@ function App() {
                           <Route
                             path="/forms/:id"
                             element={<IcsFormDetail />}
+                          />
+                          <Route path="/dvt-forms" element={<DvtFormsList />} />
+                          <Route
+                            path="/dvt-forms/:id"
+                            element={<DvtFormDetail />}
                           />
                           <Route path="/users" element={<AdminUsersList />} />
                           <Route
