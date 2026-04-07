@@ -63,20 +63,7 @@ import {
   generateCsvContent,
   generateFilename,
 } from "../../utils/csvExport";
-
-const StatusBadge = ({ status }: { status: IcsFormStatus }) => {
-  const variants = {
-    REVIEW: "secondary",
-    APPROVED: "default",
-    REJECTED: "destructive",
-  } as const;
-
-  return (
-    <Badge variant={variants[status]} className="text-xs">
-      {status}
-    </Badge>
-  );
-};
+import { StatusBadge } from "../../components/ui/status-badge";
 
 // Helper function to generate page numbers array for pagination
 const getPageNumbers = (

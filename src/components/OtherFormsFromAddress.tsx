@@ -1,7 +1,7 @@
 import { useList } from "@refinedev/core";
 import { Link } from "react-router";
 import { Archive, CheckCircle, Edit, Eye } from "lucide-react";
-import type { AdminIcsFormItemDto, IcsFormStatus } from "../types/api";
+import type { AdminIcsFormItemDto } from "../types/api";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -18,20 +18,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
-
-const StatusBadge = ({ status }: { status: IcsFormStatus }) => {
-  const variants = {
-    REVIEW: "secondary",
-    APPROVED: "default",
-    REJECTED: "destructive",
-  } as const;
-
-  return (
-    <Badge variant={variants[status]} className="text-xs">
-      {status}
-    </Badge>
-  );
-};
+import { StatusBadge } from "@/components/ui/status-badge";
 
 interface OtherFormsFromAddressProps {
   currentFormId: number;
