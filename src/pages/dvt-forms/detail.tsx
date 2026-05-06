@@ -5,8 +5,7 @@ import {
   useGetIdentity,
 } from "@refinedev/core";
 import { useParams } from "react-router";
-import { useState } from "react";
-import React from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -71,39 +70,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-const DetailStatusBadge = ({ status }: { status: FormStatus }) => {
-  const statusConfig = {
-    REVIEW: {
-      variant: "secondary" as const,
-      className:
-        "bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-amber-900/50 dark:to-yellow-900/50 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700 font-semibold px-3 py-1.5 shadow-sm",
-      Icon: Clock,
-    },
-    APPROVED: {
-      variant: "default" as const,
-      className:
-        "bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/50 dark:to-emerald-900/50 text-green-800 dark:text-green-200 border-green-300 dark:border-green-700 font-semibold px-3 py-1.5 shadow-sm",
-      Icon: CircleCheck,
-    },
-    REJECTED: {
-      variant: "destructive" as const,
-      className:
-        "bg-gradient-to-r from-red-100 to-rose-100 dark:from-red-900/50 dark:to-rose-900/50 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700 font-semibold px-3 py-1.5 shadow-sm",
-      Icon: CircleX,
-    },
-  } as const;
-
-  const config = statusConfig[status];
-  const IconComponent = config.Icon;
-
-  return (
-    <Badge variant={config.variant} className={config.className}>
-      <IconComponent className="w-4 h-4 mr-1.5" />
-      {status}
-    </Badge>
-  );
-};
+import { DetailStatusBadge } from "@/components/ui/detail-status-badge";
 
 export const DvtFormDetail = () => {
   const { id } = useParams();
@@ -130,7 +97,7 @@ export const DvtFormDetail = () => {
   const [hasChanges, setHasChanges] = useState(false);
 
   // Initialize form data when loaded
-  React.useEffect(() => {
+  useEffect(() => {
     if (data?.data) {
       setStatus(data.data.status);
       setComments(data.data.comments);
@@ -180,6 +147,9 @@ export const DvtFormDetail = () => {
           setTimeout(() => {
             list("dvt-forms");
           }, 1000);
+        },
+        onError: (error) => {
+          toast.error(`Failed to save review: ${error.message}`);
         },
       }
     );
@@ -259,10 +229,10 @@ export const DvtFormDetail = () => {
                   />
                 </svg>
               </div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-2">
+              <h3 className="text-2xl font-bold text-foreground mb-2">
                 DVT Form Not Found
               </h3>
-              <p className="text-slate-600">
+              <p className="text-muted-foreground">
                 The requested DVT form could not be found or may have been
                 removed.
               </p>
@@ -383,13 +353,13 @@ export const DvtFormDetail = () => {
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8">
               {/* Left Column - Form Fields */}
               <div className="space-y-6">
-                <div className="text-sm font-semibold text-slate-700 border-b border-slate-200 pb-2 mb-4">
+                <div className="text-sm font-semibold text-foreground border-b border-border pb-2 mb-4">
                   Form Field Data
                 </div>
 
                 {/* Main Address */}
                 <div className="space-y-3">
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide flex items-center">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center">
                     <User className="w-3 h-3 mr-1" />
                     Main Address
                   </label>
@@ -410,8 +380,8 @@ export const DvtFormDetail = () => {
                 </div>
 
                 {/* Discord Link */}
-                <div className="space-y-3 border-t border-slate-200/50 pt-4">
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide flex items-center">
+                <div className="space-y-3 border-t border-border pt-4">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center">
                     <MessageSquare className="w-3 h-3 mr-1" />
                     Discord Link
                   </label>
@@ -432,8 +402,8 @@ export const DvtFormDetail = () => {
 
                 {/* Telegram Username */}
                 {form.form.telegramUsername && (
-                  <div className="space-y-3 border-t border-slate-200/50 pt-4">
-                    <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide flex items-center">
+                  <div className="space-y-3 border-t border-border pt-4">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center">
                       <Send className="w-3 h-3 mr-1" />
                       Telegram Username
                     </label>
@@ -445,15 +415,15 @@ export const DvtFormDetail = () => {
 
                 {/* Cluster Members Table */}
                 {form.form.clusterMembers && form.form.clusterMembers.length > 0 && (
-                  <div className="border-t border-slate-200/50 pt-4">
-                    <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide flex items-center mb-3">
+                  <div className="border-t border-border pt-4">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center mb-3">
                       <Users className="w-3 h-3 mr-1" />
                       Cluster Members
                       <span className="ml-2 text-xs bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full">
                         {form.form.clusterMembers.length}
                       </span>
                     </label>
-                    <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+                    <div className="overflow-x-auto rounded-lg border border-border">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -504,7 +474,7 @@ export const DvtFormDetail = () => {
 
               {/* Right Column - Comments */}
               <div className="space-y-6">
-                <div className="text-sm font-semibold text-slate-700 border-b border-slate-200 pb-2 mb-4">
+                <div className="text-sm font-semibold text-foreground border-b border-border pb-2 mb-4">
                   Related Comments
                 </div>
 
@@ -563,8 +533,8 @@ export const DvtFormDetail = () => {
 
                 {/* Cluster Member Comments */}
                 {form.form.clusterMembers && form.form.clusterMembers.length > 0 && (
-                  <div className="border-t border-slate-200/50 pt-4">
-                    <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide flex items-center mb-3">
+                  <div className="border-t border-border pt-4">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center mb-3">
                       <Users className="w-3 h-3 mr-1" />
                       Cluster Member Comments
                       <span className="ml-2 text-xs bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full">
@@ -720,22 +690,22 @@ export const DvtFormDetail = () => {
             {status === "APPROVED" && !isReadOnly && (
               <>
                 <Separator className="my-8" />
-                <div className="mt-6 p-6 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
+                <div className="mt-6 p-6 bg-muted/50 rounded-lg border border-border">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       {issued ? (
                         <CheckCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                       ) : (
-                        <CheckCircle className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+                        <CheckCircle className="w-5 h-5 text-muted-foreground" />
                       )}
                       <div>
                         <label
                           htmlFor="issued-switch"
-                          className="text-sm font-semibold text-slate-700 dark:text-slate-200 cursor-pointer"
+                          className="text-sm font-semibold text-foreground cursor-pointer"
                         >
                           DVT Proof issued
                         </label>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        <p className="text-xs text-muted-foreground mt-1">
                           Form will be read-only after DVT Proof is issued
                         </p>
                       </div>

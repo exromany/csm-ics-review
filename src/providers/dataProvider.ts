@@ -127,33 +127,14 @@ export const dataProvider: DataProvider = {
 
   // Get one resource by ID
   getOne: async ({ resource, id }) => {
-    if (resource === "ics-forms") {
-      const { data } = await axiosInstance.request({
-        method: "GET",
-        url: `/admin/${resource}/${id}`,
-      });
+    const endpoint = resource === "admin-users" ? `/admin/users/${id}` : `/admin/${resource}/${id}`;
 
-      return { data: data as any };
-    }
+    const { data } = await axiosInstance.request({
+      method: "GET",
+      url: endpoint,
+    });
 
-    if (resource === "dvt-forms") {
-      const { data } = await axiosInstance.request({
-        method: "GET",
-        url: `/admin/${resource}/${id}`,
-      });
-      return { data: data as any };
-    }
-
-    if (resource === "admin-users") {
-      const { data } = await axiosInstance.request({
-        method: "GET",
-        url: `/admin/users/${id}`,
-      });
-
-      return { data: data as any };
-    }
-
-    throw new Error(`Resource ${resource} not supported`);
+    return { data: data as any };
   },
 
   // Update resources

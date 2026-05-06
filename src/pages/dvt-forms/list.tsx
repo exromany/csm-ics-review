@@ -63,56 +63,9 @@ import {
   generateDvtCsvContent,
   generateDvtFilename,
 } from "../../utils/csvExport";
+import { getPageNumbers } from "../../utils/pagination";
 import { StatusBadge } from "../../components/ui/status-badge";
-
-// Helper function to generate page numbers array for pagination
-const getPageNumbers = (
-  currentPage: number,
-  totalPages: number,
-  maxVisible = 7
-) => {
-  if (totalPages <= maxVisible) {
-    return Array.from({ length: totalPages }, (_, i) => i + 1);
-  }
-
-  const pages: (number | "ellipsis")[] = [];
-  const sidePages = Math.floor((maxVisible - 3) / 2); // Reserve space for first, last, and current
-
-  if (currentPage <= sidePages + 2) {
-    // Near the beginning
-    for (let i = 1; i <= sidePages + 2; i++) {
-      pages.push(i);
-    }
-    if (sidePages + 3 < totalPages) {
-      pages.push("ellipsis");
-    }
-    pages.push(totalPages);
-  } else if (currentPage >= totalPages - sidePages - 1) {
-    // Near the end
-    pages.push(1);
-    if (totalPages - sidePages - 2 > 1) {
-      pages.push("ellipsis");
-    }
-    for (let i = totalPages - sidePages - 1; i <= totalPages; i++) {
-      pages.push(i);
-    }
-  } else {
-    // In the middle
-    pages.push(1);
-    if (currentPage - sidePages > 2) {
-      pages.push("ellipsis");
-    }
-    for (let i = currentPage - sidePages; i <= currentPage + sidePages; i++) {
-      pages.push(i);
-    }
-    if (currentPage + sidePages < totalPages - 1) {
-      pages.push("ellipsis");
-    }
-    pages.push(totalPages);
-  }
-
-  return pages;
-};
+import { AddressDisplay, ReviewerDisplay } from "../../components/ui/address-display";
 
 export const DvtFormsList = () => {
   const dataProvider = useDataProvider();
@@ -625,19 +578,7 @@ export const DvtFormsList = () => {
                           #{form.id}
                         </TableCell>
                         <TableCell className="max-w-[150px]">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <code className="text-sm bg-muted px-2 py-1 rounded block truncate cursor-help">
-                                {form.form.mainAddress.slice(0, 8)}...
-                                {form.form.mainAddress.slice(-6)}
-                              </code>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="font-mono text-xs">
-                                {form.form.mainAddress}
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
+                          <AddressDisplay address={form.form.mainAddress} />
                         </TableCell>
                         <TableCell>
                           <Tooltip>
@@ -691,56 +632,33 @@ export const DvtFormsList = () => {
                           {new Date(form.createdAt).toLocaleDateString()}
                         </TableCell>
                         <TableCell className="text-muted-foreground max-w-[120px]">
-                          {form.lastReviewer ? (
-                            form.lastReviewer.startsWith("0x") ? (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <code className="text-xs block truncate cursor-help">
-                                    {`${form.lastReviewer.slice(
-                                      0,
-                                      6
-                                    )}...${form.lastReviewer.slice(-4)}`}
-                                  </code>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p className="font-mono text-xs">
-                                    {form.lastReviewer}
-                                  </p>
-                                </TooltipContent>
-                              </Tooltip>
-                            ) : (
-                              <code className="text-xs block truncate">
-                                {form.lastReviewer}
-                              </code>
-                            )
-                          ) : (
-                            <span>—</span>
-                          )}
+                          <ReviewerDisplay reviewer={form.lastReviewer} />
                         </TableCell>
                         <TableCell>
-                          <Link
-                            to={`/dvt-forms/${form.id}`}
-                            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 px-3"
-                            title={
-                              form.issued
-                                ? "View form with issued DVT Proof"
-                                : form.outdated
-                                ? "View outdated form"
-                                : "Review DVT form"
-                            }
-                          >
-                            {form.issued || form.outdated ? (
-                              <>
-                                <Eye className="h-4 w-4 mr-1" />
-                                View
-                              </>
-                            ) : (
-                              <>
-                                <Edit className="h-4 w-4 mr-1" />
-                                Review
-                              </>
-                            )}
-                          </Link>
+                          <Button variant="ghost" size="sm" asChild>
+                            <Link
+                              to={`/dvt-forms/${form.id}`}
+                              title={
+                                form.issued
+                                  ? "View form with issued DVT Proof"
+                                  : form.outdated
+                                  ? "View outdated form"
+                                  : "Review DVT form"
+                              }
+                            >
+                              {form.issued || form.outdated ? (
+                                <>
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  View
+                                </>
+                              ) : (
+                                <>
+                                  <Edit className="h-4 w-4 mr-1" />
+                                  Review
+                                </>
+                              )}
+                            </Link>
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -749,7 +667,7 @@ export const DvtFormsList = () => {
               </div>
             </div>
           )}
-          {data?.total && (
+          {data?.total ? (
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 border-t">
               <div className="flex items-center gap-4">
                 <div className="text-sm text-muted-foreground">
@@ -826,7 +744,7 @@ export const DvtFormsList = () => {
                 </Pagination>
               )}
             </div>
-          )}
+          ) : null}
         </CardContent>
       </Card>
 
