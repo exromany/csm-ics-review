@@ -81,10 +81,13 @@ export const IcsFormsList = () => {
 
   const [isExporting, setIsExporting] = useState(false);
 
-  const { data, isLoading } = useList<AdminIcsFormItemDto>({
+  const {
+    result: data,
+    query: { isLoading },
+  } = useList<AdminIcsFormItemDto>({
     resource: "ics-forms",
     pagination: {
-      current: currentPage,
+      currentPage,
       pageSize,
     },
     filters: buildFilters(filterValues),
@@ -145,7 +148,7 @@ export const IcsFormsList = () => {
       const exportData = await dataProvider().getList<AdminIcsFormItemDto>({
         resource: "ics-forms",
         pagination: {
-          current: 1,
+          currentPage: 1,
           pageSize: 9999, // Large number to get all records
         },
         filters: exportFilters,

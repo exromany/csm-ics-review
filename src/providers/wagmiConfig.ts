@@ -1,45 +1,28 @@
-import { createPublicClient, http } from "viem";
-import { hoodi } from "viem/chains";
-import { createConfig, mainnet } from "wagmi";
-import { InjectedConnector } from "wagmi/connectors/injected";
-import { MetaMaskConnector } from "wagmi/connectors/metaMask";
-import { WalletConnectConnector } from "wagmi/connectors/walletConnect";
+import { http } from "viem";
+import { hoodi, mainnet } from "viem/chains";
+import { createConfig } from "wagmi";
+import { injected, metaMask, walletConnect } from "wagmi/connectors";
 
-// Get required chain ID from environment
 const requiredChainId = parseInt(import.meta.env.VITE_CHAIN_ID || "1");
 const requiredChain = requiredChainId === 560048 ? hoodi : mainnet;
 
-const chains = [requiredChain, mainnet, hoodi];
-const publicClient = createPublicClient({
-  chain: requiredChain,
-  transport: http(),
-});
+const chains = [requiredChain, mainnet, hoodi] as const;
 
 const walletConnectProjectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
 
 export const config = createConfig({
-  autoConnect: true,
+  chains,
   connectors: [
-    new MetaMaskConnector({ chains }),
-    new InjectedConnector({
-      chains,
-      options: {
-        name: "Injected",
-        shimDisconnect: true,
-      },
-    }),
+    metaMask(),
+    injected({ shimDisconnect: true }),
     ...(walletConnectProjectId
-      ? [
-          new WalletConnectConnector({
-            chains,
-            options: {
-              projectId: walletConnectProjectId,
-            },
-          }),
-        ]
+      ? [walletConnect({ projectId: walletConnectProjectId })]
       : []),
   ],
-  publicClient,
+  transports: {
+    [mainnet.id]: http(),
+    [hoodi.id]: http(),
+  },
 });
 
 export { chains, requiredChain, requiredChainId };

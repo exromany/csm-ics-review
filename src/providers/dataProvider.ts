@@ -75,7 +75,7 @@ export const dataProvider: DataProvider = {
 
     // Pagination - direct pass through
     if (pagination) {
-      params.page = pagination.current || 1;
+      params.page = pagination.currentPage || 1;
       params.pageSize = pagination.pageSize || 20;
     }
 

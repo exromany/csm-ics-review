@@ -81,10 +81,13 @@ export const DvtFormsList = () => {
 
   const [isExporting, setIsExporting] = useState(false);
 
-  const { data, isLoading } = useList<AdminDvtFormItemDto>({
+  const {
+    result: data,
+    query: { isLoading },
+  } = useList<AdminDvtFormItemDto>({
     resource: "dvt-forms",
     pagination: {
-      current: currentPage,
+      currentPage,
       pageSize,
     },
     filters: buildFilters(filterValues),
@@ -145,7 +148,7 @@ export const DvtFormsList = () => {
       const exportData = await dataProvider().getList<AdminDvtFormItemDto>({
         resource: "dvt-forms",
         pagination: {
-          current: 1,
+          currentPage: 1,
           pageSize: 9999, // Large number to get all records
         },
         filters: exportFilters,

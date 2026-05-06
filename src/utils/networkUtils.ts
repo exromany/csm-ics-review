@@ -1,5 +1,5 @@
-import { switchNetwork } from "@wagmi/core";
-import { requiredChain, requiredChainId } from "../providers/wagmiConfig";
+import { switchChain } from "@wagmi/core";
+import { config as wagmiConfig, requiredChain, requiredChainId } from "../providers/wagmiConfig";
 
 export interface NetworkSwitchResult {
   success: boolean;
@@ -41,8 +41,8 @@ export function isCorrectNetwork(currentChainId?: number): boolean {
 export async function switchToRequiredNetwork(): Promise<NetworkSwitchResult> {
   try {
     // Try to switch to the required network
-    await switchNetwork({
-      chainId: requiredChainId,
+    await switchChain(wagmiConfig, {
+      chainId: requiredChainId as 1 | 560048,
     });
 
     return { success: true };

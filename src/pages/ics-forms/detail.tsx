@@ -74,11 +74,14 @@ import { DetailStatusBadge } from "@/components/ui/detail-status-badge";
 export const IcsFormDetail = () => {
   const { id } = useParams();
   const { list } = useNavigation();
-  const { mutate: updateForm, status: updateStatus } = useUpdate();
+  const { mutate: updateForm, mutation: updateMutation } = useUpdate();
   const { data: identity } = useGetIdentity<AdminIdentity>();
-  const isUpdating = updateStatus === "loading";
+  const isUpdating = updateMutation.isPending;
 
-  const { data, isLoading } = useOne<AdminIcsFormDetailDto>({
+  const {
+    result: data,
+    query: { isLoading },
+  } = useOne<AdminIcsFormDetailDto>({
     resource: "ics-forms",
     id: id as string,
   });
@@ -86,8 +89,8 @@ export const IcsFormDetail = () => {
   // Check if user is supervisor/viewer or form is issued/outdated (read-only mode)
   const isSupervisor = identity?.role === "SUPERVISOR";
   const isViewer = identity?.role === "VIEWER";
-  const isFormIssued = data?.data?.issued ?? false;
-  const isFormOutdated = data?.data?.outdated ?? false;
+  const isFormIssued = data?.issued ?? false;
+  const isFormOutdated = data?.outdated ?? false;
   const isReadOnly = isSupervisor || isViewer || isFormIssued || isFormOutdated;
 
   const [status, setStatus] = useState<IcsFormStatus>();
@@ -98,13 +101,13 @@ export const IcsFormDetail = () => {
 
   // Initialize form data when loaded
   useEffect(() => {
-    if (data?.data) {
-      setStatus(data.data.status);
-      setComments(data.data.comments);
-      setScores(data.data.scores);
-      setIssued(data.data.issued);
+    if (data) {
+      setStatus(data.status);
+      setComments(data.comments);
+      setScores(data.scores);
+      setIssued(data.issued);
     }
-  }, [data?.data]);
+  }, [data]);
 
   const handleStatusChange = (newStatus: IcsFormStatus) => {
     setStatus(newStatus);
@@ -222,7 +225,7 @@ export const IcsFormDetail = () => {
     );
   }
 
-  if (!data?.data) {
+  if (!data) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 dark:from-slate-900 dark:via-blue-900/30 dark:to-indigo-900/50 flex items-center justify-center">
         <Card className="backdrop-blur-sm bg-white/90 border-0 shadow-2xl shadow-slate-200/60 ring-1 ring-slate-200/60 max-w-md w-full mx-4">
@@ -265,7 +268,7 @@ export const IcsFormDetail = () => {
     );
   }
 
-  const form = data.data;
+  const form = data;
 
   // Helper function to collect all ethereum addresses
   const getAllAddresses = () => {

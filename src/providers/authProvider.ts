@@ -2,6 +2,7 @@ import type { AuthProvider } from "@refinedev/core";
 import { SiweMessage } from "siwe";
 import { getAccount, signMessage } from "@wagmi/core";
 import type { AdminAuthSignInDto, AdminAuthPayloadDto } from "../types/api";
+import { config as wagmiConfig } from "./wagmiConfig";
 
 export const TOKEN_KEY = "admin-jwt-token";
 export const ADMIN_DATA_KEY = "admin-data";
@@ -11,7 +12,7 @@ export const API_BASE_URL =
 export const authProvider: AuthProvider = {
   login: async () => {
     try {
-      const account = getAccount();
+      const account = getAccount(wagmiConfig);
 
       if (!account.address || !account.isConnected) {
         return {
@@ -41,7 +42,7 @@ export const authProvider: AuthProvider = {
       const messageToSign = message.prepareMessage();
 
       // Sign the message
-      const signature = await signMessage({
+      const signature = await signMessage(wagmiConfig, {
         message: messageToSign,
       });
 

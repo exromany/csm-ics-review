@@ -10,13 +10,10 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  esbuild: {
+  oxc: {
     target: 'es2022',
   },
   optimizeDeps: {
-    esbuildOptions: {
-      target: 'es2022',
-    },
     exclude: ['@base-org/account'],
   },
   build: {

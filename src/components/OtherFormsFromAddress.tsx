@@ -41,7 +41,10 @@ export const OtherFormsFromAddress = ({
   basePath,
   proofLabel,
 }: OtherFormsFromAddressProps) => {
-  const { data, isLoading } = useList<FormItem>({
+  const {
+    result,
+    query: { isLoading },
+  } = useList<FormItem>({
     resource,
     filters: [
       {
@@ -51,7 +54,7 @@ export const OtherFormsFromAddress = ({
       },
     ],
     pagination: {
-      current: 1,
+      currentPage: 1,
       pageSize: 100,
     },
     sorters: [
@@ -63,7 +66,7 @@ export const OtherFormsFromAddress = ({
   });
 
   const otherForms =
-    data?.data?.filter((form) => form.id !== currentFormId) || [];
+    result?.data?.filter((form) => form.id !== currentFormId) || [];
 
   if (!isLoading && otherForms.length === 0) {
     return null;

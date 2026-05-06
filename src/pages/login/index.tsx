@@ -1,6 +1,6 @@
 import { useLogin } from "@refinedev/core";
-import { useConnect, useAccount, useNetwork, useDisconnect } from "wagmi";
-import { Connector } from "wagmi";
+import { useConnect, useAccount, useDisconnect } from "wagmi";
+import type { Connector } from "wagmi";
 import { useState, useEffect } from "react";
 import { Wallet, CheckCircle, XCircle, Loader2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,10 +19,9 @@ import {
 
 export const Login = () => {
   const { mutate: login, status, error } = useLogin();
-  const isLoading = status === "loading";
-  const { connectors, connect, isLoading: isConnecting, error: connectError } = useConnect();
-  const { isConnected, address } = useAccount();
-  const { chain } = useNetwork();
+  const isLoading = status === "pending";
+  const { connectors, connect, isPending: isConnecting, error: connectError } = useConnect();
+  const { isConnected, address, chain } = useAccount();
   const { disconnect } = useDisconnect();
   const [connecting, setConnecting] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);

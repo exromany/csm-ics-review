@@ -12,7 +12,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export const AdminUserCreate = () => {
   const { list } = useNavigation();
-  const { mutate: createUser, isLoading: isCreating } = useCreate();
+  const { mutate: createUser, mutation: createMutation } = useCreate();
+  const isCreating = createMutation.isPending;
   const [formData, setFormData] = useState<AdminUserCreateDto>({
     address: "",
     role: "REVIEWER",

@@ -6,7 +6,7 @@ import routerBindings, {
 } from "@refinedev/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Route, Routes } from "react-router";
-import { WagmiConfig } from "wagmi";
+import { WagmiProvider } from "wagmi";
 import "./App.css";
 import { Layout } from "./components/layout";
 import { AdminUserCreate, AdminUsersList } from "./pages/admin-users";
@@ -47,7 +47,7 @@ const documentTitleHandler: ComponentProps<
 
 function App() {
   return (
-    <WagmiConfig config={config}>
+    <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider
           attribute="class"
@@ -89,7 +89,6 @@ function App() {
               options={{
                 syncWithLocation: true,
                 warnWhenUnsavedChanges: true,
-                useNewQueryKeys: true,
               }}
             >
               <Routes>
@@ -132,7 +131,7 @@ function App() {
           </HashRouter>
         </ThemeProvider>
       </QueryClientProvider>
-    </WagmiConfig>
+    </WagmiProvider>
   );
 }
 

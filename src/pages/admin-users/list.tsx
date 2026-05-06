@@ -146,10 +146,13 @@ export const AdminUsersList = () => {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [pageSize, setPageSize] = useState(20);
 
-  const { data, isLoading } = useList<AdminUserItemDto>({
+  const {
+    result: data,
+    query: { isLoading },
+  } = useList<AdminUserItemDto>({
     resource: "admin-users",
     pagination: {
-      current: currentPage,
+      currentPage,
       pageSize,
     },
     filters: buildFilters(filterValues),
@@ -574,7 +577,7 @@ export const AdminUsersList = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data?.data?.map((user) => (
+                  {data?.data?.map((user: AdminUserItemDto) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">#{user.id}</TableCell>
                       <TableCell>
