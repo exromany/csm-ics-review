@@ -565,7 +565,12 @@ export const IcsFormsList = () => {
                     {data?.data?.map((form) => (
                       <TableRow key={form.id}>
                         <TableCell className="font-medium">
-                          #{form.id}
+                          <Link
+                            to={`/forms/${form.id}`}
+                            className="text-primary hover:underline"
+                          >
+                            #{form.id}
+                          </Link>
                         </TableCell>
                         <TableCell className="max-w-[150px]">
                           <AddressDisplay address={form.form.mainAddress} />

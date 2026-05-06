@@ -33,11 +33,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useDataProvider, useList } from "@refinedev/core";
 import {
   Archive,
@@ -407,7 +402,6 @@ export const DvtFormsList = () => {
                     <TableRow>
                       <TableHead>ID</TableHead>
                       <TableHead>Main Address</TableHead>
-                      <TableHead>Cluster Members</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>DVT Proof</TableHead>
                       <TableHead>Outdated</TableHead>
@@ -424,9 +418,6 @@ export const DvtFormsList = () => {
                         </TableCell>
                         <TableCell>
                           <Skeleton className="h-4 w-32" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-6 w-20" />
                         </TableCell>
                         <TableCell>
                           <Skeleton className="h-6 w-20" />
@@ -494,7 +485,6 @@ export const DvtFormsList = () => {
                           )}
                         </Button>
                       </TableHead>
-                      <TableHead>Cluster Members</TableHead>
                       <TableHead>
                         <Button
                           variant="ghost"
@@ -575,28 +565,15 @@ export const DvtFormsList = () => {
                     {data?.data?.map((form) => (
                       <TableRow key={form.id}>
                         <TableCell className="font-medium">
-                          #{form.id}
+                          <Link
+                            to={`/dvt-forms/${form.id}`}
+                            className="text-primary hover:underline"
+                          >
+                            #{form.id}
+                          </Link>
                         </TableCell>
                         <TableCell className="max-w-[150px]">
                           <AddressDisplay address={form.form.mainAddress} />
-                        </TableCell>
-                        <TableCell>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge variant="secondary" className="text-xs cursor-help">
-                                {form.form.clusterMembers?.length || 0} members
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <div className="space-y-1">
-                                {form.form.clusterMembers?.map((member, i) => (
-                                  <p key={i} className="font-mono text-xs">
-                                    {member.address.slice(0, 8)}...{member.address.slice(-6)}
-                                  </p>
-                                ))}
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
                         </TableCell>
                         <TableCell>
                           <StatusBadge status={form.status} />
