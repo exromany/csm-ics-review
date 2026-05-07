@@ -17,13 +17,14 @@ RUN \
 
 FROM base AS builder
 
+ARG BUILD_MODE=production
 ENV NODE_ENV=production
 
 COPY --from=deps /app/refine/node_modules ./node_modules
 
 COPY . .
 
-RUN yarn build
+RUN yarn build --mode $BUILD_MODE
 
 FROM base AS runner
 
