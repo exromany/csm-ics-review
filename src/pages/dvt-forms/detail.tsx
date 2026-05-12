@@ -74,7 +74,10 @@ import {
 import { DetailStatusBadge } from "@/components/ui/detail-status-badge";
 import { IcsStatusBadge } from "@/components/ui/ics-status-badge";
 import { useIcsStatusList } from "../../hooks/useIcsStatus";
-import { useDvtFormsByAddressList } from "../../hooks/useDvtFormsByAddress";
+import {
+  useDvtFormsByIdentifiersList,
+  type DvtIdentifier,
+} from "../../hooks/useDvtFormsByIdentifiers";
 import { DvtLinkedFormRowContent } from "../../components/ClusterMemberDvtMatch";
 
 export const DvtFormDetail = () => {
@@ -104,7 +107,39 @@ export const DvtFormDetail = () => {
     [data?.form.clusterMembers]
   );
   const icsStatus = useIcsStatusList(icsAddresses);
-  const dvtMatches = useDvtFormsByAddressList(icsAddresses, data?.id);
+
+  const dvtIdentifiers = useMemo<DvtIdentifier[]>(() => {
+    // Already-rejected forms don't need cross-application checks — decision is final.
+    if (data?.status === "REJECTED") return [];
+    const members = data?.form.clusterMembers ?? [];
+    const result: DvtIdentifier[] = [];
+    for (const m of members) {
+      if (m.address) result.push({ kind: "address", value: m.address });
+    }
+    if (data?.form.discordLink) {
+      result.push({ kind: "discordLink", value: data.form.discordLink });
+    }
+    if (data?.form.telegramUsername) {
+      result.push({
+        kind: "telegramUsername",
+        value: data.form.telegramUsername,
+      });
+    }
+    return result;
+  }, [
+    data?.status,
+    data?.form.clusterMembers,
+    data?.form.discordLink,
+    data?.form.telegramUsername,
+  ]);
+
+  const dvtMatches = useDvtFormsByIdentifiersList(dvtIdentifiers, data?.id);
+
+  const discordLinkedForms =
+    dvtMatches.get("discordLink", data?.form.discordLink ?? "")?.forms ?? [];
+  const telegramLinkedForms =
+    dvtMatches.get("telegramUsername", data?.form.telegramUsername ?? "")
+      ?.forms ?? [];
 
   const [status, setStatus] = useState<FormStatus>();
   const [comments, setComments] = useState<DvtCommentsDto>({});
@@ -399,6 +434,15 @@ export const DvtFormDetail = () => {
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center">
                     <MessageSquare className="w-3 h-3 mr-1" />
                     Discord Link
+                    {discordLinkedForms.length > 0 && (
+                      <span
+                        className="inline-flex items-center flex-shrink-0 ml-1.5"
+                        title={`Appears in ${discordLinkedForms.length} other DVT application${discordLinkedForms.length === 1 ? "" : "s"}`}
+                        aria-label="Warning: appears in other DVT applications"
+                      >
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                      </span>
+                    )}
                   </label>
                   <a
                     href={form.form.discordLink}
@@ -413,6 +457,21 @@ export const DvtFormDetail = () => {
                     </span>
                     <ExternalLink className="w-3 h-3 ml-1 flex-shrink-0" />
                   </a>
+                  {discordLinkedForms.length > 0 && (
+                    <div className="space-y-1.5 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 p-2">
+                      {discordLinkedForms.map((linkedForm) => (
+                        <div
+                          key={linkedForm.id}
+                          className="px-2 py-1.5 rounded bg-white/60 dark:bg-amber-950/30"
+                        >
+                          <DvtLinkedFormRowContent
+                            form={linkedForm}
+                            matchedOn={["discordLink"]}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Telegram Username */}
@@ -421,10 +480,34 @@ export const DvtFormDetail = () => {
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center">
                       <Send className="w-3 h-3 mr-1" />
                       Telegram Username
+                      {telegramLinkedForms.length > 0 && (
+                        <span
+                          className="inline-flex items-center flex-shrink-0 ml-1.5"
+                          title={`Appears in ${telegramLinkedForms.length} other DVT application${telegramLinkedForms.length === 1 ? "" : "s"}`}
+                          aria-label="Warning: appears in other DVT applications"
+                        >
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                        </span>
+                      )}
                     </label>
                     <p className="text-sm text-foreground bg-muted px-3 py-2 rounded-lg">
                       {form.form.telegramUsername}
                     </p>
+                    {telegramLinkedForms.length > 0 && (
+                      <div className="space-y-1.5 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 p-2">
+                        {telegramLinkedForms.map((linkedForm) => (
+                          <div
+                            key={linkedForm.id}
+                            className="px-2 py-1.5 rounded bg-white/60 dark:bg-amber-950/30"
+                          >
+                            <DvtLinkedFormRowContent
+                              form={linkedForm}
+                              matchedOn={["telegramUsername"]}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -435,9 +518,6 @@ export const DvtFormDetail = () => {
                       <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center">
                         <Users className="w-3 h-3 mr-1" />
                         Cluster Members
-                        <span className="ml-2 text-xs bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full">
-                          {form.form.clusterMembers.length}
-                        </span>
                       </label>
                       <div className="flex items-center gap-2">
                         {icsStatus.hasError && (
@@ -484,8 +564,10 @@ export const DvtFormDetail = () => {
                         <TableBody>
                           {form.form.clusterMembers.map((member, index) => {
                             const s = icsStatus.get(member.address);
-                            const d = dvtMatches.get(member.address);
-                            const linked = d?.forms ?? [];
+                            const d = dvtMatches.getMerged({
+                              address: member.address,
+                            });
+                            const linked = d.forms;
                             const hasLinked = linked.length > 0;
                             const warnSubRow =
                               "bg-amber-50 hover:bg-amber-100/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40";
@@ -555,6 +637,7 @@ export const DvtFormDetail = () => {
                                       <TableCell colSpan={4} className="py-2">
                                         <DvtLinkedFormRowContent
                                           form={linkedForm}
+                                          matchedOn={linkedForm.matchedOn}
                                         />
                                       </TableCell>
                                     </TableRow>
@@ -635,9 +718,6 @@ export const DvtFormDetail = () => {
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center mb-3">
                       <Users className="w-3 h-3 mr-1" />
                       Cluster Member Comments
-                      <span className="ml-2 text-xs bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full">
-                        {form.form.clusterMembers.length}
-                      </span>
                     </label>
                     <div className="space-y-3">
                       {form.form.clusterMembers.map((member, index) => (
