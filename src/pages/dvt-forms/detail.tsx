@@ -5,7 +5,7 @@ import {
   useGetIdentity,
 } from "@refinedev/core";
 import { useParams } from "react-router";
-import { useState, useEffect, useMemo } from "react";
+import { Fragment, useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -74,6 +74,8 @@ import {
 import { DetailStatusBadge } from "@/components/ui/detail-status-badge";
 import { IcsStatusBadge } from "@/components/ui/ics-status-badge";
 import { useIcsStatusList } from "../../hooks/useIcsStatus";
+import { useDvtFormsByAddressList } from "../../hooks/useDvtFormsByAddress";
+import { DvtLinkedFormRowContent } from "../../components/ClusterMemberDvtMatch";
 
 export const DvtFormDetail = () => {
   const { id } = useParams();
@@ -102,6 +104,7 @@ export const DvtFormDetail = () => {
     [data?.form.clusterMembers]
   );
   const icsStatus = useIcsStatusList(icsAddresses);
+  const dvtMatches = useDvtFormsByAddressList(icsAddresses, data?.id);
 
   const [status, setStatus] = useState<FormStatus>();
   const [comments, setComments] = useState<DvtCommentsDto>({});
@@ -436,20 +439,36 @@ export const DvtFormDetail = () => {
                           {form.form.clusterMembers.length}
                         </span>
                       </label>
-                      {icsStatus.hasError && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={icsStatus.refetchAll}
-                          disabled={icsStatus.isLoading}
-                          className="h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/30"
-                        >
-                          <RefreshCw
-                            className={`w-3 h-3 mr-1.5 ${icsStatus.isLoading ? "animate-spin" : ""}`}
-                          />
-                          Re-check ICS
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {icsStatus.hasError && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={icsStatus.refetchAll}
+                            disabled={icsStatus.isLoading}
+                            className="h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/30"
+                          >
+                            <RefreshCw
+                              className={`w-3 h-3 mr-1.5 ${icsStatus.isLoading ? "animate-spin" : ""}`}
+                            />
+                            Re-check ICS
+                          </Button>
+                        )}
+                        {dvtMatches.hasError && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={dvtMatches.refetchAll}
+                            disabled={dvtMatches.isLoading}
+                            className="h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/30"
+                          >
+                            <RefreshCw
+                              className={`w-3 h-3 mr-1.5 ${dvtMatches.isLoading ? "animate-spin" : ""}`}
+                            />
+                            Re-check DVT
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     <div className="overflow-x-auto rounded-lg border border-border">
                       <Table>
@@ -465,43 +484,83 @@ export const DvtFormDetail = () => {
                         <TableBody>
                           {form.form.clusterMembers.map((member, index) => {
                             const s = icsStatus.get(member.address);
+                            const d = dvtMatches.get(member.address);
+                            const linked = d?.forms ?? [];
+                            const hasLinked = linked.length > 0;
+                            const warnSubRow =
+                              "bg-amber-50 hover:bg-amber-100/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40";
                             return (
-                              <TableRow key={index}>
-                                <TableCell className="text-xs font-medium text-muted-foreground">
-                                  {index + 1}
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex items-center space-x-1">
-                                    <span className="font-mono text-xs break-all">
-                                      {member.address.length > 16
-                                        ? `${member.address.slice(0, 8)}...${member.address.slice(-6)}`
-                                        : member.address}
-                                    </span>
-                                    <a
-                                      href={`https://etherscan.io/address/${member.address}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="flex-shrink-0 text-blue-500 hover:text-blue-700"
-                                      title="View on Etherscan"
+                              <Fragment key={index}>
+                                <TableRow
+                                  className={
+                                    hasLinked ? "border-b-0" : ""
+                                  }
+                                >
+                                  <TableCell className="text-xs font-medium text-muted-foreground align-top">
+                                    {index + 1}
+                                  </TableCell>
+                                  <TableCell className="align-top">
+                                    <div className="flex items-center space-x-1">
+                                      {hasLinked && (
+                                        <span
+                                          className="inline-flex items-center flex-shrink-0"
+                                          title={`Appears in ${linked.length} other DVT application${linked.length === 1 ? "" : "s"}`}
+                                          aria-label="Warning: appears in other DVT applications"
+                                        >
+                                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                                        </span>
+                                      )}
+                                      <span className="font-mono text-xs break-all">
+                                        {member.address.length > 16
+                                          ? `${member.address.slice(0, 8)}...${member.address.slice(-6)}`
+                                          : member.address}
+                                      </span>
+                                      <a
+                                        href={`https://etherscan.io/address/${member.address}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex-shrink-0 text-blue-500 hover:text-blue-700"
+                                        title="View on Etherscan"
+                                      >
+                                        <ExternalLink className="w-3 h-3" />
+                                      </a>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="align-top">
+                                    <IcsStatusBadge
+                                      status={s?.status}
+                                      isLoading={s?.isLoading ?? false}
+                                      isError={s?.isError ?? false}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="text-xs text-muted-foreground align-top">
+                                    {member.discordHandle || "—"}
+                                  </TableCell>
+                                  <TableCell className="text-xs text-muted-foreground align-top">
+                                    {member.telegramUsername || "—"}
+                                  </TableCell>
+                                </TableRow>
+                                {linked.map((linkedForm, lIdx) => {
+                                  const isLast = lIdx === linked.length - 1;
+                                  return (
+                                    <TableRow
+                                      key={`${index}-${linkedForm.id}`}
+                                      className={`${warnSubRow} ${
+                                        isLast ? "" : "border-b-0"
+                                      }`.trim()}
                                     >
-                                      <ExternalLink className="w-3 h-3" />
-                                    </a>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <IcsStatusBadge
-                                    status={s?.status}
-                                    isLoading={s?.isLoading ?? false}
-                                    isError={s?.isError ?? false}
-                                  />
-                                </TableCell>
-                                <TableCell className="text-xs text-muted-foreground">
-                                  {member.discordHandle || "—"}
-                                </TableCell>
-                                <TableCell className="text-xs text-muted-foreground">
-                                  {member.telegramUsername || "—"}
-                                </TableCell>
-                              </TableRow>
+                                      <TableCell className="text-xs text-amber-700 dark:text-amber-300 text-center">
+                                        {isLast ? "└" : "├"}
+                                      </TableCell>
+                                      <TableCell colSpan={4} className="py-2">
+                                        <DvtLinkedFormRowContent
+                                          form={linkedForm}
+                                        />
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                })}
+                              </Fragment>
                             );
                           })}
                         </TableBody>

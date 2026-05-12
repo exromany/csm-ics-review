@@ -122,7 +122,7 @@ export const OtherFormsFromAddress = ({
     <Card>
       <CardHeader>
         <CardTitle className="text-lg">
-          Other Forms with Same Address
+          Other Forms with same Main Address
           <span className="ml-2 text-sm font-normal text-muted-foreground">
             ({otherForms.length} {otherForms.length === 1 ? "form" : "forms"})
           </span>
