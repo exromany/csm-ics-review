@@ -15,8 +15,10 @@ import { IcsFormsList } from "./pages/ics-forms/list";
 import { DvtFormDetail } from "./pages/dvt-forms/detail";
 import { DvtFormsList } from "./pages/dvt-forms/list";
 import { Login } from "./pages/login";
+import { SettingsPage } from "./pages/settings";
 import { authProvider } from "./providers/authProvider";
 import { dataProvider } from "./providers/dataProvider";
+import { SettingsProvider } from "./providers/settingsProvider";
 import { ThemeProvider } from "./providers/themeProvider";
 import { config } from "./providers/wagmiConfig";
 import { Toaster } from "./components/ui/sonner";
@@ -49,6 +51,7 @@ function App() {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
+        <SettingsProvider>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -85,6 +88,13 @@ function App() {
                     label: "User Management",
                   },
                 },
+                {
+                  name: "settings",
+                  list: "/settings",
+                  meta: {
+                    label: "Settings",
+                  },
+                },
               ]}
               options={{
                 syncWithLocation: true,
@@ -118,6 +128,7 @@ function App() {
                             path="/users/create"
                             element={<AdminUserCreate />}
                           />
+                          <Route path="/settings" element={<SettingsPage />} />
                         </Routes>
                       </Layout>
                     </Authenticated>
@@ -130,6 +141,7 @@ function App() {
             <Toaster />
           </HashRouter>
         </ThemeProvider>
+        </SettingsProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );

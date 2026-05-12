@@ -5,7 +5,7 @@ import {
   useGetIdentity,
 } from "@refinedev/core";
 import { useParams } from "react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -25,6 +25,7 @@ import {
   Users,
   MessageSquare,
   Send,
+  RefreshCw,
 } from "lucide-react";
 import type {
   AdminDvtFormDetailDto,
@@ -71,6 +72,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DetailStatusBadge } from "@/components/ui/detail-status-badge";
+import { IcsStatusBadge } from "@/components/ui/ics-status-badge";
+import { useIcsStatusList } from "../../hooks/useIcsStatus";
 
 export const DvtFormDetail = () => {
   const { id } = useParams();
@@ -93,6 +96,12 @@ export const DvtFormDetail = () => {
   const isFormIssued = data?.issued ?? false;
   const isFormOutdated = data?.outdated ?? false;
   const isReadOnly = isSupervisor || isViewer || isFormIssued || isFormOutdated;
+
+  const icsAddresses = useMemo(
+    () => data?.form.clusterMembers?.map((m) => m.address) ?? [],
+    [data?.form.clusterMembers]
+  );
+  const icsStatus = useIcsStatusList(icsAddresses);
 
   const [status, setStatus] = useState<FormStatus>();
   const [comments, setComments] = useState<DvtCommentsDto>({});
@@ -419,55 +428,82 @@ export const DvtFormDetail = () => {
                 {/* Cluster Members Table */}
                 {form.form.clusterMembers && form.form.clusterMembers.length > 0 && (
                   <div className="border-t border-border pt-4">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center mb-3">
-                      <Users className="w-3 h-3 mr-1" />
-                      Cluster Members
-                      <span className="ml-2 text-xs bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full">
-                        {form.form.clusterMembers.length}
-                      </span>
-                    </label>
+                    <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center">
+                        <Users className="w-3 h-3 mr-1" />
+                        Cluster Members
+                        <span className="ml-2 text-xs bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full">
+                          {form.form.clusterMembers.length}
+                        </span>
+                      </label>
+                      {icsStatus.hasError && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={icsStatus.refetchAll}
+                          disabled={icsStatus.isLoading}
+                          className="h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/30"
+                        >
+                          <RefreshCw
+                            className={`w-3 h-3 mr-1.5 ${icsStatus.isLoading ? "animate-spin" : ""}`}
+                          />
+                          Re-check ICS
+                        </Button>
+                      )}
+                    </div>
                     <div className="overflow-x-auto rounded-lg border border-border">
                       <Table>
                         <TableHeader>
                           <TableRow>
                             <TableHead className="w-10">#</TableHead>
                             <TableHead>Address</TableHead>
+                            <TableHead>ICS</TableHead>
                             <TableHead>Discord Handle</TableHead>
                             <TableHead>Telegram</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {form.form.clusterMembers.map((member, index) => (
-                            <TableRow key={index}>
-                              <TableCell className="text-xs font-medium text-muted-foreground">
-                                {index + 1}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center space-x-1">
-                                  <span className="font-mono text-xs break-all">
-                                    {member.address.length > 16
-                                      ? `${member.address.slice(0, 8)}...${member.address.slice(-6)}`
-                                      : member.address}
-                                  </span>
-                                  <a
-                                    href={`https://etherscan.io/address/${member.address}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex-shrink-0 text-blue-500 hover:text-blue-700"
-                                    title="View on Etherscan"
-                                  >
-                                    <ExternalLink className="w-3 h-3" />
-                                  </a>
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-xs text-muted-foreground">
-                                {member.discordHandle || "—"}
-                              </TableCell>
-                              <TableCell className="text-xs text-muted-foreground">
-                                {member.telegramUsername || "—"}
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                          {form.form.clusterMembers.map((member, index) => {
+                            const s = icsStatus.get(member.address);
+                            return (
+                              <TableRow key={index}>
+                                <TableCell className="text-xs font-medium text-muted-foreground">
+                                  {index + 1}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center space-x-1">
+                                    <span className="font-mono text-xs break-all">
+                                      {member.address.length > 16
+                                        ? `${member.address.slice(0, 8)}...${member.address.slice(-6)}`
+                                        : member.address}
+                                    </span>
+                                    <a
+                                      href={`https://etherscan.io/address/${member.address}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex-shrink-0 text-blue-500 hover:text-blue-700"
+                                      title="View on Etherscan"
+                                    >
+                                      <ExternalLink className="w-3 h-3" />
+                                    </a>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <IcsStatusBadge
+                                    status={s?.status}
+                                    isLoading={s?.isLoading ?? false}
+                                    isError={s?.isError ?? false}
+                                  />
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground">
+                                  {member.discordHandle || "—"}
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground">
+                                  {member.telegramUsername || "—"}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
                         </TableBody>
                       </Table>
                     </div>

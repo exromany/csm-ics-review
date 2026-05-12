@@ -1,6 +1,6 @@
 import { useLogout, useGetIdentity, useNavigation } from "@refinedev/core";
 import { useDisconnect } from "wagmi";
-import { LogOut, Users, FileText, Network } from "lucide-react";
+import { LogOut, Users, FileText, Network, Settings } from "lucide-react";
 import type { AdminIdentity } from "../../types/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,16 @@ export const Menu = () => {
                   Users
                 </Button>
               )}
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => list("settings")}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Settings
+              </Button>
             </nav>
           </div>
           
