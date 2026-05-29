@@ -32,8 +32,13 @@ ENV NODE_ENV=production
 
 RUN npm install -g serve
 
-COPY --from=builder /app/refine/dist ./
+# --chown so the unprivileged `refine` user can overwrite config.js at startup.
+COPY --chown=refine:refine --from=builder /app/refine/dist ./
+COPY --chown=refine:refine docker-entrypoint.sh /app/refine/docker-entrypoint.sh
+RUN chmod +x /app/refine/docker-entrypoint.sh
 
 USER refine
 
+# Entrypoint regenerates config.js from the runtime environment, then runs CMD.
+ENTRYPOINT ["/app/refine/docker-entrypoint.sh"]
 CMD ["serve"]

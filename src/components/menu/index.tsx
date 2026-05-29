@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { appConfig } from "@/config/env";
 
 export const Menu = () => {
   const { mutate: logout } = useLogout();
@@ -24,7 +25,7 @@ export const Menu = () => {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-8">
             <h1 className="text-xl font-semibold">
-              {import.meta.env.VITE_APP_NAME || "CSM ICS Admin Panel"}
+              {appConfig.appName}
             </h1>
             
             {/* Navigation Menu */}

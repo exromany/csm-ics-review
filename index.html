@@ -17,6 +17,9 @@
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
+    <!-- Runtime config: a plain (non-module) script runs before the deferred
+         module bundle, so window.__APP_CONFIG__ is set before any app code. -->
+    <script src="/config.js"></script>
     <script type="module" src="/src/index.tsx"></script>
     <!--
       This HTML file is a template.

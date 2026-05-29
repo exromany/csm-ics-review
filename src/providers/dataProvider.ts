@@ -8,9 +8,9 @@ import type {
   AdminUserCreateDto,
 } from "../types/api";
 import { TOKEN_KEY } from "./authProvider";
+import { appConfig } from "../config/env";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:3003";
+const API_BASE_URL = appConfig.apiBaseUrl;
 
 const axiosInstance = {
   async request(config: {

@@ -3,11 +3,11 @@ import { SiweMessage } from "siwe";
 import { getAccount, signMessage } from "@wagmi/core";
 import type { AdminAuthSignInDto, AdminAuthPayloadDto } from "../types/api";
 import { config as wagmiConfig } from "./wagmiConfig";
+import { appConfig } from "../config/env";
 
 export const TOKEN_KEY = "admin-jwt-token";
 export const ADMIN_DATA_KEY = "admin-data";
-export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:3003";
+export const API_BASE_URL = appConfig.apiBaseUrl;
 
 export const authProvider: AuthProvider = {
   login: async () => {
@@ -25,10 +25,9 @@ export const authProvider: AuthProvider = {
       }
 
       // Create SIWE message
-      const domain = import.meta.env.VITE_SIWE_DOMAIN || window.location.host;
+      const domain = appConfig.siweDomain || window.location.host;
       const origin = window.location.origin;
-      const statement =
-        import.meta.env.VITE_SIWE_STATEMENT || "Sign in to CSM ICS Admin Panel";
+      const statement = appConfig.siweStatement;
 
       const message = new SiweMessage({
         domain,
@@ -36,7 +35,7 @@ export const authProvider: AuthProvider = {
         statement,
         uri: origin,
         version: "1",
-        chainId: parseInt(import.meta.env.VITE_CHAIN_ID || "1"),
+        chainId: appConfig.chainId,
       });
 
       const messageToSign = message.prepareMessage();

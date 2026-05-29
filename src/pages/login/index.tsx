@@ -16,6 +16,7 @@ import {
   formatNetworkError,
   type NetworkSwitchResult,
 } from "@/utils/networkUtils";
+import { appConfig } from "@/config/env";
 
 export const Login = () => {
   const { mutate: login, status, error } = useLogin();
@@ -161,7 +162,7 @@ export const Login = () => {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
           <h2 className="mt-6 text-3xl font-bold tracking-tight">
-            {import.meta.env.VITE_APP_NAME || "CSM ICS Admin Panel"}
+            {appConfig.appName}
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
             Connect your wallet and sign in to access the admin interface

@@ -22,6 +22,7 @@ import { SettingsProvider } from "./providers/settingsProvider";
 import { ThemeProvider } from "./providers/themeProvider";
 import { config } from "./providers/wagmiConfig";
 import { Toaster } from "./components/ui/sonner";
+import { appConfig } from "./config/env";
 import { ComponentProps } from "react";
 
 const queryClient = new QueryClient();
@@ -29,7 +30,7 @@ const queryClient = new QueryClient();
 const documentTitleHandler: ComponentProps<
   typeof DocumentTitleHandler
 >["handler"] = ({ resource, action, params, pathname }) => {
-  const appName = import.meta.env.VITE_APP_NAME || "CSM ICS Admin Panel";
+  const appName = appConfig.appName;
   let title = appName;
 
   if (resource?.meta?.label) {
