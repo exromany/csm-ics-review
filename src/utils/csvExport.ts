@@ -28,6 +28,7 @@ export interface FlattenedIcsForm {
   sdvtMainnet?: number;
   humanPassport?: number;
   circles?: number;
+  ssvHumanity?: number;
   discord?: number;
   twitter?: number;
   aragonVotes?: number;
@@ -78,6 +79,7 @@ export const flattenIcsForm = (form: AdminIcsFormItemDto): FlattenedIcsForm => {
     sdvtMainnet: scores.sdvtMainnet,
     humanPassport: scores.humanPassport,
     circles: scores.circles,
+    ssvHumanity: scores.ssvHumanity,
     discord: scores.discord,
     twitter: scores.twitter,
     aragonVotes: scores.aragonVotes,

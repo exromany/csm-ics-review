@@ -182,6 +182,16 @@ export const SCORE_SOURCES: ScoreSource[] = [
           "Submitted address is verified via a dedicated Lido group on Circles",
       },
       {
+        id: "ssvHumanity",
+        name: "SSV Verified operators",
+        icon: SSVIcon,
+        points: 3,
+        maxPoints: 3,
+        allowedValues: [0, 3],
+        description:
+          "Submitted address is present in the SSV Verified Operators list and does not belong to a professional operator",
+      },
+      {
         id: "discord",
         name: "Discord",
         icon: DiscordIcon,
@@ -258,18 +268,21 @@ export const SCORE_SOURCES: ScoreSource[] = [
       },
       {
         id: "highSignal",
-        name: "Lido High Signal score",
+        name: "High Signal score",
         icon: HighSignalIcon,
         points: "2-5",
         maxPoints: 5,
         allowedValues: [0, 2, 3, 4, 5],
         description: (
           <>
-            Submitted address has a score on the Lido High Signal space:
+            Submitted address has a score on the Lido or SSV High Signal space:
             <br />• 2 points if 30 ≤ High Signal score ≤ 40
             <br />• 3 points if 40 &lt; High Signal score ≤ 60
             <br />• 4 points if 60 &lt; High Signal score ≤ 80
             <br />• 5 points if High Signal score &gt; 80
+            <br />
+            Lido and SSV scores are not added together. The higher score is
+            used.
           </>
         ),
       },
