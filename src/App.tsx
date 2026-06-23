@@ -10,6 +10,7 @@ import { WagmiProvider } from "wagmi";
 import "./App.css";
 import { Layout } from "./components/layout";
 import { AdminUserCreate, AdminUsersList } from "./pages/admin-users";
+import { DesignSystemShowcase } from "./pages/design-system";
 import { IcsFormDetail } from "./pages/ics-forms/detail";
 import { IcsFormsList } from "./pages/ics-forms/list";
 import { DvtFormDetail } from "./pages/dvt-forms/detail";
@@ -21,6 +22,7 @@ import { dataProvider } from "./providers/dataProvider";
 import { SettingsProvider } from "./providers/settingsProvider";
 import { ThemeProvider } from "./providers/themeProvider";
 import { config } from "./providers/wagmiConfig";
+import { LoadingState } from "@/components/ui";
 import { Toaster } from "./components/ui/sonner";
 import { appConfig } from "./config/env";
 import { ComponentProps } from "react";
@@ -105,11 +107,16 @@ function App() {
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route
+                  path="/design-system"
+                  element={<DesignSystemShowcase />}
+                />
+                <Route
                   path="/*"
                   element={
                     <Authenticated
                       key="authenticated-routes"
                       fallback={<Login />}
+                      loading={<LoadingState label="Checking session…" />}
                     >
                       <Layout>
                         <Routes>

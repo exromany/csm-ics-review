@@ -2,10 +2,11 @@ import { useLogin } from "@refinedev/core";
 import { useConnect, useAccount, useDisconnect } from "wagmi";
 import type { Connector } from "wagmi";
 import { useState, useEffect } from "react";
+import type { ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 import { Wallet, CheckCircle, XCircle, Loader2, AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button, Panel, type Tone, toneSoft } from "@/components/ui";
+import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
   getRequiredNetworkName,
@@ -18,13 +19,36 @@ import {
 } from "@/utils/networkUtils";
 import { appConfig } from "@/config/env";
 
+/**
+ * Full-width status callout for the sign-in flow. Carries the same soft single
+ * tint as {@link SoftBadge} (via the shared `toneSoft` token map) but lays out
+ * as a notice block — a leading icon beside heading/body content — so it can
+ * host multi-line copy and an inline action button.
+ */
+const Callout = ({
+  tone,
+  icon: Icon,
+  children,
+}: {
+  tone: Tone;
+  icon: LucideIcon;
+  children: ReactNode;
+}) => (
+  <div className={cn("rounded-lg p-3 ring-1 ring-inset", toneSoft[tone])}>
+    <div className="flex items-start gap-2.5">
+      <Icon className="mt-0.5 size-4 shrink-0" />
+      <div className="min-w-0">{children}</div>
+    </div>
+  </div>
+);
+
 export const Login = () => {
   const { mutate: login, status, error } = useLogin();
   const isLoading = status === "pending";
-  const { connectors, connect, isPending: isConnecting, error: connectError } = useConnect();
+  const { connectors, connect, error: connectError } = useConnect();
   const { isConnected, address, chain } = useAccount();
   const { disconnect } = useDisconnect();
-  const [connecting, setConnecting] = useState(false);
+  const [pendingConnectorId, setPendingConnectorId] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [networkError, setNetworkError] = useState<string | null>(null);
   const [isSwitchingNetwork, setIsSwitchingNetwork] = useState(false);
@@ -35,14 +59,12 @@ export const Login = () => {
   const isOnCorrectNetwork = isCorrectNetwork(chain?.id);
 
   const handleWalletConnect = (connector: Connector) => {
-    try {
-      setConnecting(true);
-      setNetworkError(null);
-      connect({ connector });
-    } catch (error) {
-      console.error("Wallet connection failed:", error);
-      setConnecting(false);
-    }
+    setNetworkError(null);
+    setPendingConnectorId(connector.id);
+    connect(
+      { connector },
+      { onSettled: () => setPendingConnectorId(null) }
+    );
   };
 
   const handleNetworkSwitch = async () => {
@@ -123,10 +145,10 @@ export const Login = () => {
     setAuthError(null);
     setNetworkError(null);
     setShowManualConfig(false);
-    
+
     // Reset connecting state
-    setConnecting(false);
-    
+    setPendingConnectorId(null);
+
     // Disconnect current wallet
     disconnect();
   };
@@ -145,48 +167,47 @@ export const Login = () => {
     setNetworkError(null);
   }, [address]);
 
-  // Reset connecting state when wallet disconnects
-  useEffect(() => {
-    if (!isConnected) {
-      setConnecting(false);
-    }
-  }, [isConnected]);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative">
+    <div className="relative flex min-h-screen flex-col justify-center bg-background px-6 py-12">
       {/* Theme Toggle in Top Right */}
-      <div className="absolute top-6 right-6 z-10">
+      <div className="absolute right-6 top-6 z-10">
         <ThemeToggle />
       </div>
-      
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="text-center">
-          <h2 className="mt-6 text-3xl font-bold tracking-tight">
+
+      <div className="mx-auto w-full max-w-sm">
+        {/* Wordmark + subtitle */}
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-5 flex size-12 items-center justify-center rounded-xl border bg-card shadow-panel">
+            <Wallet className="size-5 text-primary" />
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight">
             {appConfig.appName}
-          </h2>
+          </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Connect your wallet and sign in to access the admin interface
           </p>
         </div>
-      </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-center">
-              {!isConnected ? "Connect Wallet" : "Sign In"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <Panel className="p-6">
+          <h2 className="text-base font-semibold tracking-tight">
+            {!isConnected ? "Connect wallet" : "Sign in"}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {!isConnected
+              ? "Choose a wallet provider to continue."
+              : "Verify your identity with a signed message."}
+          </p>
+
+          <div className="mt-6 space-y-4">
             {/* Manual Network Configuration */}
             {showManualConfig && (
-              <Alert className="border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20">
-                <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-                <AlertDescription>
-                  <div className="font-medium text-yellow-800 dark:text-yellow-200 mb-2">
-                    Manual Network Configuration Required
+              <Callout tone="amber" icon={AlertTriangle}>
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">
+                    Manual network configuration required
                   </div>
-                  <div className="text-yellow-700 dark:text-yellow-300 text-xs space-y-1">
+                  <div className="space-y-1 text-xs">
                     {(() => {
                       const config = getManualNetworkConfig();
                       return (
@@ -202,90 +223,91 @@ export const Login = () => {
                       );
                     })()}
                   </div>
-                </AlertDescription>
-              </Alert>
+                </div>
+              </Callout>
             )}
 
             {!isConnected ? (
               <div className="space-y-3">
                 {connectors
                   .filter((connector: Connector) => connector.name !== "Injected")
-                  .map((connector: Connector) => (
+                  .map((connector: Connector) => {
+                    const isThisConnecting = pendingConnectorId === connector.id;
+                    return (
+                      <Button
+                        key={connector.id}
+                        onClick={() => handleWalletConnect(connector)}
+                        disabled={pendingConnectorId !== null}
+                        className="w-full"
+                        size="lg"
+                      >
+                        {isThisConnecting ? (
+                          <>
+                            <Loader2 className="size-4 animate-spin" />
+                            Connecting...
+                          </>
+                        ) : (
+                          <>
+                            <Wallet className="size-4" />
+                            Connect {connector.name}
+                          </>
+                        )}
+                      </Button>
+                    );
+                  })}
+                {(() => {
+                  const injectedConnector = connectors.find(
+                    (c: Connector) => c.name === "Injected"
+                  );
+                  if (!injectedConnector) return null;
+                  const isThisConnecting =
+                    pendingConnectorId === injectedConnector.id;
+                  return (
                     <Button
-                      key={connector.id}
-                      onClick={() => handleWalletConnect(connector)}
-                      disabled={connecting || isConnecting}
+                      variant="outline"
+                      onClick={() => handleWalletConnect(injectedConnector)}
+                      disabled={pendingConnectorId !== null}
                       className="w-full"
                       size="lg"
                     >
-                      {connecting || isConnecting ? (
+                      {isThisConnecting ? (
                         <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          <Loader2 className="size-4 animate-spin" />
                           Connecting...
                         </>
                       ) : (
                         <>
-                          <Wallet className="mr-2 h-4 w-4" />
-                          Connect {connector.name}
+                          <Wallet className="size-4" />
+                          Connect Browser Wallet
                         </>
                       )}
                     </Button>
-                  ))}
-                {connectors.filter((connector: Connector) => connector.name === "Injected")
-                  .length > 0 && (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      const injectedConnector = connectors.find((c: Connector) => c.name === "Injected");
-                      if (injectedConnector) {
-                        handleWalletConnect(injectedConnector);
-                      }
-                    }}
-                    disabled={connecting || isConnecting}
-                    className="w-full"
-                    size="lg"
-                  >
-                    {connecting || isConnecting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Connecting...
-                      </>
-                    ) : (
-                      <>
-                        <Wallet className="mr-2 h-4 w-4" />
-                        Connect Browser Wallet
-                      </>
-                    )}
-                  </Button>
-                )}
+                  );
+                })()}
               </div>
             ) : (
               <div className="space-y-4">
                 {/* Wallet Connection Status */}
-                <Alert className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20">
-                  <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                  <AlertDescription>
-                    <div className="font-medium text-green-800 dark:text-green-200 mb-1">
-                      Wallet Connected
-                    </div>
-                    <div className="font-mono text-xs text-green-700 dark:text-green-300">
-                      {address}
-                    </div>
-                  </AlertDescription>
-                </Alert>
+                <Callout tone="emerald" icon={CheckCircle}>
+                  <div className="text-sm font-medium">Wallet connected</div>
+                  <div className="mt-0.5 break-all font-mono text-xs opacity-90">
+                    {address}
+                  </div>
+                </Callout>
 
                 {/* Network Status - Only show alert for wrong network */}
                 {!isOnCorrectNetwork && (
-                  <Alert variant="destructive">
-                    <XCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      <div className="font-medium mb-1">
-                        Wrong Network Detected
-                      </div>
-                      <div className="text-sm mb-3">
-                        Connected to: {currentNetworkName}
-                        <br />
-                        Required: {requiredNetworkName}
+                  <Callout tone="red" icon={XCircle}>
+                    <div className="space-y-3">
+                      <div>
+                        <div className="text-sm font-medium">
+                          Wrong network detected
+                        </div>
+                        <div className="mt-1 text-sm">
+                          Connected to: {currentNetworkName}
+                          <br />
+                          Required: {requiredNetworkName}
+                        </div>
                       </div>
                       <Button
                         onClick={handleNetworkSwitch}
@@ -295,32 +317,31 @@ export const Login = () => {
                       >
                         {isSwitchingNetwork ? (
                           <>
-                            <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                            <Loader2 className="size-3.5 animate-spin" />
                             Switching...
                           </>
                         ) : (
                           `Switch to ${requiredNetworkName}`
                         )}
                       </Button>
-                    </AlertDescription>
-                  </Alert>
+                    </div>
+                  </Callout>
                 )}
 
                 {/* Error Messages */}
                 {(error || authError || connectError || networkError) && (
-                  <Alert variant="destructive">
-                    <XCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      <div className="font-medium mb-1">
-                        {networkError
-                          ? "Network Error"
-                          : error || authError
-                          ? "Authentication Failed"
-                          : "Wallet Connection Failed"}
-                      </div>
+                  <Callout tone="red" icon={XCircle}>
+                    <div className="text-sm font-medium">
+                      {networkError
+                        ? "Network error"
+                        : error || authError
+                        ? "Authentication failed"
+                        : "Wallet connection failed"}
+                    </div>
+                    <div className="mt-1 text-sm">
                       {networkError || authError || error?.message || connectError?.message}
-                    </AlertDescription>
-                  </Alert>
+                    </div>
+                  </Callout>
                 )}
 
                 {/* Sign In Button */}
@@ -332,7 +353,7 @@ export const Login = () => {
                 >
                   {isLoading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="size-4 animate-spin" />
                       Signing In...
                     </>
                   ) : (
@@ -348,19 +369,19 @@ export const Login = () => {
                   className="w-full"
                   size="lg"
                 >
-                  <Wallet className="mr-2 h-4 w-4" />
+                  <Wallet className="size-4" />
                   Change Wallet
                 </Button>
 
-                <p className="text-xs text-muted-foreground text-center">
+                <p className="text-center text-xs text-muted-foreground">
                   {isOnCorrectNetwork
                     ? "You will be prompted to sign a message to verify your identity"
                     : "Please switch to the correct network before signing in"}
                 </p>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </Panel>
       </div>
     </div>
   );

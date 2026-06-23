@@ -1,22 +1,12 @@
 import { useState, useEffect } from "react";
-import { toast } from "sonner";
-import { Globe, Save, RotateCcw, Network } from "lucide-react";
+import { RotateCcw, Save } from "lucide-react";
 import {
   useSettings,
   DEFAULT_RPC_URLS,
   type SupportedChainId,
 } from "../../providers/settingsProvider";
 import { requiredChain, requiredChainId } from "../../providers/wagmiConfig";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button, Input, Label, Panel, notify } from "@/components/ui";
 
 export const SettingsPage = () => {
   const { rpcUrls, setRpcUrl, resetRpcUrl } = useSettings();
@@ -37,14 +27,14 @@ export const SettingsPage = () => {
       try {
         new URL(value);
       } catch {
-        toast.error("Invalid URL");
+        notify.error("Invalid URL");
         return;
       }
       setRpcUrl(chainId, value);
-      toast.success(`${chainName} RPC saved`);
+      notify.success(`${chainName} RPC saved`);
     } else {
       resetRpcUrl(chainId);
-      toast.success(`${chainName} RPC reset to default`);
+      notify.success(`${chainName} RPC reset to default`);
     }
   };
 
@@ -56,58 +46,59 @@ export const SettingsPage = () => {
   const hasChange = draft.trim() !== stored;
 
   return (
-    <div className="container mx-auto space-y-6 max-w-3xl">
-      <div>
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground mt-1">
+    <div className="mx-auto max-w-2xl space-y-6">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+        <p className="text-sm text-muted-foreground">
           Configure RPC endpoints used to read on-chain data.
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Network className="w-5 h-5 mr-2 text-primary" />
-            RPC Endpoints
-          </CardTitle>
-          <CardDescription>
+      <Panel>
+        <div className="space-y-1 border-b p-5">
+          <h2 className="text-base font-semibold">RPC endpoints</h2>
+          <p className="text-sm text-muted-foreground">
             Custom RPC endpoints are used by the Lido CSM SDK to check ICS
             membership. Leave empty to use the built-in public RPC.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Label className="text-sm font-semibold flex items-center">
-            <Globe className="w-4 h-4 mr-2 text-muted-foreground" />
-            {chainName}
-            <span className="ml-2 text-xs text-muted-foreground font-normal">
+          </p>
+        </div>
+
+        <div className="space-y-3 p-5">
+          <div className="flex items-baseline gap-2">
+            <Label htmlFor="rpc-url" className="text-sm font-medium">
+              {chainName}
+            </Label>
+            <span className="text-xs font-normal tabular-nums text-muted-foreground">
               Chain ID {chainId}
             </span>
-          </Label>
+          </div>
           <Input
+            id="rpc-url"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder={defaultRpc}
             className="font-mono text-sm"
           />
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-muted-foreground">
-              Default: <code className="font-mono">{defaultRpc}</code>
+              Default:{" "}
+              <code className="font-mono text-foreground">{defaultRpc}</code>
             </p>
             <div className="flex items-center gap-2">
               {stored && (
                 <Button variant="ghost" size="sm" onClick={handleReset}>
-                  <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                  <RotateCcw className="size-3.5" />
                   Reset
                 </Button>
               )}
               <Button size="sm" onClick={handleSave} disabled={!hasChange}>
-                <Save className="w-3.5 h-3.5 mr-1.5" />
+                <Save className="size-3.5" />
                 Save
               </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </Panel>
     </div>
   );
 };
