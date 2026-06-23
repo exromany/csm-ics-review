@@ -5,13 +5,18 @@ import {
   useGetIdentity,
 } from "@refinedev/core";
 import { useParams } from "react-router";
-import { Fragment, useState, useEffect, useMemo } from "react";
-import { toast } from "sonner";
+import {
+  Fragment,
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import {
   ArrowLeft,
   CheckCircle,
   User,
-  Globe,
   ExternalLink,
   Clock,
   CircleCheck,
@@ -33,52 +38,112 @@ import type {
   DvtCommentsDto,
   AdminIdentity,
 } from "../../types/api";
+import { cn } from "@/lib/utils";
 import { OtherFormsFromAddress } from "../../components/OtherFormsFromAddress";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
+  Button,
+  Panel,
+  SoftBadge,
+  Switch,
+  Input,
+  Label,
+  Textarea,
   Breadcrumb,
   BreadcrumbList,
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbPage,
-} from "@/components/ui/breadcrumb";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { DetailStatusBadge } from "@/components/ui/detail-status-badge";
-import { IcsStatusBadge } from "@/components/ui/ics-status-badge";
+  DetailStatusBadge,
+  IcsStatusBadge,
+  AddressDisplay,
+  ReviewerDisplay,
+  LoadingState,
+  EmptyState,
+  QueryErrorState,
+  notify,
+  toneIcon,
+  toneSoft,
+  toneSolid,
+  toneBorder,
+  toneTint,
+} from "@/components/ui";
 import { useIcsStatusList } from "../../hooks/useIcsStatus";
 import {
   useDvtFormsByIdentifiersList,
   type DvtIdentifier,
 } from "../../hooks/useDvtFormsByIdentifiers";
 import { DvtLinkedFormRowContent } from "../../components/ClusterMemberDvtMatch";
+
+const FieldLabel = ({
+  icon: Icon,
+  children,
+  warn,
+}: {
+  icon: typeof User;
+  children: React.ReactNode;
+  warn?: { count: number };
+}) => (
+  <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+    <Icon className="size-3.5" />
+    {children}
+    {warn && warn.count > 0 && (
+      <span
+        className="inline-flex items-center"
+        title={`Appears in ${warn.count} other DVT application${warn.count === 1 ? "" : "s"}`}
+        aria-label="Warning: appears in other DVT applications"
+      >
+        <AlertTriangle className={cn("size-3.5", toneIcon.amber)} />
+      </span>
+    )}
+  </span>
+);
+
+const DECISIONS: {
+  value: FormStatus;
+  label: string;
+  hint: string;
+  tooltip: string;
+  Icon: typeof Clock;
+  activeClass: string;
+}[] = [
+  {
+    value: "REVIEW",
+    label: "Under Review",
+    hint: "Pending decision",
+    tooltip: "Mark as under review",
+    Icon: Clock,
+    activeClass: toneSolid.amber,
+  },
+  {
+    value: "APPROVED",
+    label: "Approved",
+    hint: "Accept form",
+    tooltip: "Approve this submission",
+    Icon: CircleCheck,
+    activeClass: toneSolid.emerald,
+  },
+  {
+    value: "REJECTED",
+    label: "Rejected",
+    hint: "Decline form",
+    tooltip: "Reject this submission",
+    Icon: CircleX,
+    activeClass: toneSolid.red,
+  },
+];
 
 export const DvtFormDetail = () => {
   const { id } = useParams();
@@ -89,7 +154,7 @@ export const DvtFormDetail = () => {
 
   const {
     result: data,
-    query: { isLoading },
+    query: { isLoading, isError, refetch, isFetching },
   } = useOne<AdminDvtFormDetailDto>({
     resource: "dvt-forms",
     id: id as string,
@@ -141,40 +206,62 @@ export const DvtFormDetail = () => {
     dvtMatches.get("telegramUsername", data?.form.telegramUsername ?? "")
       ?.forms ?? [];
 
+  // Build the per-address merged lookup once per render instead of calling
+  // getMerged (which constructs a fresh Map + sorts) inside the clusterMembers
+  // .map below on every row, every render.
+  const mergedByAddress = useMemo(() => {
+    const members = data?.form.clusterMembers ?? [];
+    return new Map(
+      members.map((m) => [m.address, dvtMatches.getMerged({ address: m.address })])
+    );
+  }, [data?.form.clusterMembers, dvtMatches]);
+
   const [status, setStatus] = useState<FormStatus>();
   const [comments, setComments] = useState<DvtCommentsDto>({});
   const [issued, setIssued] = useState<boolean>(false);
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Initialize form data when loaded
+  // Initialize form data once per id when it first arrives. Guarding on the id
+  // (a) resets hasChanges per form so a dirty banner from form A never leaks
+  // into form B (same component instance, no route key), and (b) ignores later
+  // background refetches so in-progress edits aren't clobbered.
+  const initializedId = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (data) {
+    if (data && initializedId.current !== id) {
       setStatus(data.status);
       setComments(data.comments);
       setIssued(data.issued);
+      setHasChanges(false);
+      initializedId.current = id;
     }
-  }, [data]);
+  }, [data, id]);
 
-  const handleStatusChange = (newStatus: FormStatus) => {
+  const handleStatusChange = useCallback((newStatus: FormStatus) => {
     setStatus(newStatus);
     setHasChanges(true);
-  };
+  }, []);
 
-  const handleCommentChange = (field: keyof DvtCommentsDto, value: string) => {
-    setComments((prev) => ({ ...prev, [field]: value }));
-    setHasChanges(true);
-  };
+  const handleCommentChange = useCallback(
+    (field: keyof DvtCommentsDto, value: string) => {
+      setComments((prev) => ({ ...prev, [field]: value }));
+      setHasChanges(true);
+    },
+    []
+  );
 
-  const handleClusterMemberCommentChange = (index: number, value: string) => {
-    setComments((prev) => {
-      const clusterMembers = prev.clusterMembers
-        ? [...prev.clusterMembers]
-        : [];
-      clusterMembers[index] = value;
-      return { ...prev, clusterMembers };
-    });
-    setHasChanges(true);
-  };
+  const handleClusterMemberCommentChange = useCallback(
+    (index: number, value: string) => {
+      setComments((prev) => {
+        const clusterMembers = prev.clusterMembers
+          ? [...prev.clusterMembers]
+          : [];
+        clusterMembers[index] = value;
+        return { ...prev, clusterMembers };
+      });
+      setHasChanges(true);
+    },
+    []
+  );
 
   const handleIssuedChange = (value: boolean) => {
     setIssued(value);
@@ -193,13 +280,11 @@ export const DvtFormDetail = () => {
       {
         onSuccess: () => {
           setHasChanges(false);
-          toast.success("DVT form review updated successfully");
-          setTimeout(() => {
-            list("dvt-forms");
-          }, 1000);
+          notify.success("DVT form review updated successfully");
+          list("dvt-forms");
         },
         onError: (error) => {
-          toast.error(`Failed to save review: ${error.message}`);
+          notify.error(`Failed to save review: ${error.message}`);
         },
       }
     );
@@ -207,96 +292,45 @@ export const DvtFormDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto py-8">
-          <div className="space-y-8">
-            {/* Breadcrumb Skeleton */}
-            <Skeleton className="h-4 w-48" />
+      <div className="space-y-6">
+        <LoadingState label="Loading DVT form…" />
+      </div>
+    );
+  }
 
-            {/* Header Skeleton */}
-            <Card>
-              <CardHeader className="pb-8">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-3">
-                    <Skeleton className="h-8 w-64" />
-                    <Skeleton className="h-4 w-48" />
-                  </div>
-                  <div className="flex space-x-3">
-                    <Skeleton className="h-8 w-24" />
-                    <Skeleton className="h-8 w-32" />
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
-
-            {/* Content Skeleton */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <Card>
-                <CardContent className="p-6 space-y-4">
-                  <Skeleton className="h-6 w-1/3" />
-                  <div className="space-y-3">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-4 w-1/2" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6 space-y-4">
-                  <Skeleton className="h-6 w-1/3" />
-                  <div className="space-y-3">
-                    <Skeleton className="h-20 w-full" />
-                    <Skeleton className="h-16 w-full" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
+  if (isError) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Panel className="mx-4 w-full max-w-md p-8">
+          <QueryErrorState
+            size="md"
+            title="Couldn't load DVT form"
+            onRetry={() => refetch()}
+            isRetrying={isFetching}
+          />
+        </Panel>
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 dark:from-slate-900 dark:via-blue-900/30 dark:to-indigo-900/50 flex items-center justify-center">
-        <Card className="backdrop-blur-sm bg-white/90 border-0 shadow-2xl shadow-slate-200/60 ring-1 ring-slate-200/60 max-w-md w-full mx-4">
-          <CardContent className="p-8 text-center">
-            <div className="mb-6">
-              <div className="w-16 h-16 mx-auto bg-gradient-to-br from-red-400 to-rose-500 rounded-full flex items-center justify-center mb-4">
-                <svg
-                  className="w-8 h-8 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-2xl font-bold text-foreground mb-2">
-                DVT Form Not Found
-              </h3>
-              <p className="text-muted-foreground">
-                The requested DVT form could not be found or may have been
-                removed.
-              </p>
-            </div>
-
-            <Button
-              onClick={() => list("dvt-forms")}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to DVT Forms List
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="mx-auto max-w-md pt-10">
+        <Panel className="p-8">
+          <EmptyState
+            icon={AlertTriangle}
+            tone="destructive"
+            size="md"
+            title="DVT form not found"
+            description="The requested DVT form could not be found or may have been removed."
+            action={
+              <Button onClick={() => list("dvt-forms")}>
+                <ArrowLeft className="size-4" />
+                Back to DVT forms
+              </Button>
+            }
+          />
+        </Panel>
       </div>
     );
   }
@@ -304,734 +338,566 @@ export const DvtFormDetail = () => {
   const form = data;
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto py-8 space-y-8">
-        {/* Breadcrumb Navigation */}
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink
-                className="cursor-pointer"
-                onClick={() => list("dvt-forms")}
-              >
-                DVT Forms
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbItem>
-              <BreadcrumbPage>Form #{form.id}</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
+    <div className="space-y-6">
+      {/* Breadcrumb Navigation */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink
+              className="cursor-pointer"
+              onClick={() => list("dvt-forms")}
+            >
+              DVT Forms
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbItem>
+            <BreadcrumbPage>Form #{form.id}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
-        {/* Header */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-start justify-between">
-              <div className="space-y-3">
-                <div>
-                  <CardTitle className="text-3xl font-bold">
-                    DVT Form Review
-                  </CardTitle>
-                  <div className="text-lg font-semibold text-muted-foreground mt-1">
-                    #{form.id}
-                  </div>
-                </div>
-                <CardDescription className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <span className="font-medium">
-                      Submitted on{" "}
-                      {new Date(form.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  {form.lastReviewer && (
-                    <div className="flex items-center space-x-2">
-                      <span>
-                        Last reviewed by:{" "}
-                        <code className="bg-muted px-2 py-1 rounded text-sm font-mono">
-                          {form.lastReviewer.startsWith("0x")
-                            ? `${form.lastReviewer.slice(
-                                0,
-                                8
-                              )}...${form.lastReviewer.slice(-6)}`
-                            : form.lastReviewer}
-                        </code>
-                      </span>
-                    </div>
-                  )}
-                </CardDescription>
-              </div>
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-3">
-                  {form.outdated && (
-                    <Badge
-                      variant="outline"
-                      className="border-amber-200 text-amber-700 bg-amber-50"
-                    >
-                      <Archive className="w-3 h-3 mr-1" />
-                      Outdated
-                    </Badge>
-                  )}
-                  {form.status === "APPROVED" && form.issued && (
-                    <Badge
-                      variant="outline"
-                      className="border-green-200 text-green-700 bg-green-50"
-                    >
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                      Issued
-                    </Badge>
-                  )}
-                  <DetailStatusBadge status={form.status} />
-                </div>
-                <Button variant="outline" onClick={() => list("dvt-forms")}>
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to List
-                </Button>
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              DVT form review
+            </h1>
+            <span className="rounded-md bg-secondary px-2 py-0.5 text-sm font-medium tabular-nums text-muted-foreground">
+              #{form.id}
+            </span>
+          </div>
+          <p className="flex flex-wrap items-center gap-x-1 text-sm text-muted-foreground">
+            Submitted {new Date(form.createdAt).toLocaleDateString()}
+            {form.lastReviewer && (
+              <span className="flex items-center gap-1">
+                {" · last reviewed by "}
+                <ReviewerDisplay reviewer={form.lastReviewer} />
+              </span>
+            )}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {form.outdated && (
+            <SoftBadge tone="amber" icon={Archive}>
+              Outdated
+            </SoftBadge>
+          )}
+          {form.status === "APPROVED" && form.issued && (
+            <SoftBadge tone="emerald" icon={CheckCircle}>
+              Issued
+            </SoftBadge>
+          )}
+          <DetailStatusBadge status={form.status} />
+          <Button variant="outline" onClick={() => list("dvt-forms")}>
+            <ArrowLeft className="size-4" />
+            Back
+          </Button>
+        </div>
+      </div>
+
+      {/* Submitted DVT Form Data */}
+      <Panel className="overflow-hidden">
+        <div className="border-b px-6 py-4">
+          <h2 className="text-sm font-semibold">Submitted DVT form data</h2>
+        </div>
+        <div className="grid grid-cols-1 gap-x-8 gap-y-6 p-6 xl:grid-cols-2">
+          {/* Left Column - Form Fields */}
+          <div className="space-y-6">
+            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Form field data
+            </div>
+
+            {/* Main Address */}
+            <div className="space-y-2">
+              <FieldLabel icon={User}>Main Address</FieldLabel>
+              <div className="flex items-center gap-2">
+                <p className="flex-1 break-all rounded-md bg-muted px-3 py-2 font-mono text-sm text-foreground">
+                  {form.form.mainAddress}
+                </p>
+                <a
+                  href={`https://etherscan.io/address/${form.form.mainAddress}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  title="View on Etherscan"
+                >
+                  <ExternalLink className="size-4" />
+                </a>
               </div>
             </div>
-          </CardHeader>
-        </Card>
 
-        {/* Submitted DVT Form Data */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Globe className="w-5 h-5 text-primary mr-3" />
-              Submitted DVT Form Data
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8">
-              {/* Left Column - Form Fields */}
-              <div className="space-y-6">
-                <div className="text-sm font-semibold text-foreground border-b border-border pb-2 mb-4">
-                  Form Field Data
-                </div>
-
-                {/* Main Address */}
-                <div className="space-y-3">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center">
-                    <User className="w-3 h-3 mr-1" />
-                    Main Address
-                  </label>
-                  <div className="flex items-center space-x-2">
-                    <p className="font-mono text-sm text-foreground bg-muted px-3 py-2 rounded-lg flex-1 break-all">
-                      {form.form.mainAddress}
-                    </p>
-                    <a
-                      href={`https://etherscan.io/address/${form.form.mainAddress}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center w-8 h-8 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:hover:bg-blue-900/70 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 rounded-lg transition-colors duration-200"
-                      title="View on Etherscan"
+            {/* Discord Link */}
+            <div className="space-y-2 border-t pt-5">
+              <FieldLabel
+                icon={MessageSquare}
+                warn={{ count: discordLinkedForms.length }}
+              >
+                Discord Link
+              </FieldLabel>
+              <a
+                href={form.form.discordLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 break-all rounded-md bg-muted px-3 py-2 text-sm text-primary hover:underline"
+              >
+                <span className="max-w-xs truncate">
+                  {form.form.discordLink.length > 50
+                    ? `${form.form.discordLink.substring(0, 50)}...`
+                    : form.form.discordLink}
+                </span>
+                <ExternalLink className="size-3 shrink-0" />
+              </a>
+              {discordLinkedForms.length > 0 && (
+                <div className={cn("space-y-1.5 rounded-md p-2 ring-1 ring-inset", toneSoft.amber)}>
+                  {discordLinkedForms.map((linkedForm) => (
+                    <div
+                      key={linkedForm.id}
+                      className="rounded bg-card px-2 py-1.5"
                     >
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  </div>
-                </div>
-
-                {/* Discord Link */}
-                <div className="space-y-3 border-t border-border pt-4">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center">
-                    <MessageSquare className="w-3 h-3 mr-1" />
-                    Discord Link
-                    {discordLinkedForms.length > 0 && (
-                      <span
-                        className="inline-flex items-center flex-shrink-0 ml-1.5"
-                        title={`Appears in ${discordLinkedForms.length} other DVT application${discordLinkedForms.length === 1 ? "" : "s"}`}
-                        aria-label="Warning: appears in other DVT applications"
-                      >
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                      </span>
-                    )}
-                  </label>
-                  <a
-                    href={form.form.discordLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 inline-flex items-center bg-muted px-3 py-2 rounded-lg break-all"
-                  >
-                    <span className="truncate max-w-xs">
-                      {form.form.discordLink.length > 50
-                        ? `${form.form.discordLink.substring(0, 50)}...`
-                        : form.form.discordLink}
-                    </span>
-                    <ExternalLink className="w-3 h-3 ml-1 flex-shrink-0" />
-                  </a>
-                  {discordLinkedForms.length > 0 && (
-                    <div className="space-y-1.5 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 p-2">
-                      {discordLinkedForms.map((linkedForm) => (
-                        <div
-                          key={linkedForm.id}
-                          className="px-2 py-1.5 rounded bg-white/60 dark:bg-amber-950/30"
-                        >
-                          <DvtLinkedFormRowContent
-                            form={linkedForm}
-                            matchedOn={["discordLink"]}
-                          />
-                        </div>
-                      ))}
+                      <DvtLinkedFormRowContent
+                        form={linkedForm}
+                        matchedOn={["discordLink"]}
+                      />
                     </div>
-                  )}
+                  ))}
                 </div>
+              )}
+            </div>
 
-                {/* Telegram Username */}
-                {form.form.telegramUsername && (
-                  <div className="space-y-3 border-t border-border pt-4">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center">
-                      <Send className="w-3 h-3 mr-1" />
-                      Telegram Username
-                      {telegramLinkedForms.length > 0 && (
-                        <span
-                          className="inline-flex items-center flex-shrink-0 ml-1.5"
-                          title={`Appears in ${telegramLinkedForms.length} other DVT application${telegramLinkedForms.length === 1 ? "" : "s"}`}
-                          aria-label="Warning: appears in other DVT applications"
-                        >
-                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                        </span>
-                      )}
-                    </label>
-                    <p className="text-sm text-foreground bg-muted px-3 py-2 rounded-lg">
-                      {form.form.telegramUsername}
-                    </p>
-                    {telegramLinkedForms.length > 0 && (
-                      <div className="space-y-1.5 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 p-2">
-                        {telegramLinkedForms.map((linkedForm) => (
-                          <div
-                            key={linkedForm.id}
-                            className="px-2 py-1.5 rounded bg-white/60 dark:bg-amber-950/30"
-                          >
-                            <DvtLinkedFormRowContent
-                              form={linkedForm}
-                              matchedOn={["telegramUsername"]}
-                            />
-                          </div>
-                        ))}
+            {/* Telegram Username */}
+            {form.form.telegramUsername && (
+              <div className="space-y-2 border-t pt-5">
+                <FieldLabel
+                  icon={Send}
+                  warn={{ count: telegramLinkedForms.length }}
+                >
+                  Telegram Username
+                </FieldLabel>
+                <p className="rounded-md bg-muted px-3 py-2 text-sm text-foreground">
+                  {form.form.telegramUsername}
+                </p>
+                {telegramLinkedForms.length > 0 && (
+                  <div className={cn("space-y-1.5 rounded-md p-2 ring-1 ring-inset", toneSoft.amber)}>
+                    {telegramLinkedForms.map((linkedForm) => (
+                      <div
+                        key={linkedForm.id}
+                        className="rounded bg-card px-2 py-1.5"
+                      >
+                        <DvtLinkedFormRowContent
+                          form={linkedForm}
+                          matchedOn={["telegramUsername"]}
+                        />
                       </div>
-                    )}
+                    ))}
                   </div>
                 )}
+              </div>
+            )}
 
-                {/* Cluster Members Table */}
-                {form.form.clusterMembers && form.form.clusterMembers.length > 0 && (
-                  <div className="border-t border-border pt-4">
-                    <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center">
-                        <Users className="w-3 h-3 mr-1" />
-                        Cluster Members
-                      </label>
-                      <div className="flex items-center gap-2">
-                        {icsStatus.hasError && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={icsStatus.refetchAll}
-                            disabled={icsStatus.isLoading}
-                            className="h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/30"
-                          >
-                            <RefreshCw
-                              className={`w-3 h-3 mr-1.5 ${icsStatus.isLoading ? "animate-spin" : ""}`}
-                            />
-                            Re-check ICS
-                          </Button>
-                        )}
-                        {dvtMatches.hasError && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={dvtMatches.refetchAll}
-                            disabled={dvtMatches.isLoading}
-                            className="h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/30"
-                          >
-                            <RefreshCw
-                              className={`w-3 h-3 mr-1.5 ${dvtMatches.isLoading ? "animate-spin" : ""}`}
-                            />
-                            Re-check DVT
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="overflow-x-auto rounded-lg border border-border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-10">#</TableHead>
-                            <TableHead>Address</TableHead>
-                            <TableHead>ICS</TableHead>
-                            <TableHead>Discord Handle</TableHead>
-                            <TableHead>Telegram</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {form.form.clusterMembers.map((member, index) => {
-                            const s = icsStatus.get(member.address);
-                            const d = dvtMatches.getMerged({
-                              address: member.address,
-                            });
-                            const linked = d.forms;
-                            const hasLinked = linked.length > 0;
-                            const warnSubRow =
-                              "bg-amber-50 hover:bg-amber-100/70 dark:bg-amber-900/30 dark:hover:bg-amber-900/40";
-                            return (
-                              <Fragment key={index}>
+            {/* Cluster Members Table */}
+            {form.form.clusterMembers && form.form.clusterMembers.length > 0 && (
+              <div className="border-t pt-5">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <FieldLabel icon={Users}>Cluster Members</FieldLabel>
+                  <div className="flex items-center gap-2">
+                    {icsStatus.hasError && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={icsStatus.refetchAll}
+                        disabled={icsStatus.isLoading}
+                      >
+                        <RefreshCw
+                          className={cn("size-3.5", icsStatus.isLoading && "animate-spin")}
+                        />
+                        Re-check ICS
+                      </Button>
+                    )}
+                    {dvtMatches.hasError && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={dvtMatches.refetchAll}
+                        disabled={dvtMatches.isLoading}
+                      >
+                        <RefreshCw
+                          className={cn("size-3.5", dvtMatches.isLoading && "animate-spin")}
+                        />
+                        Re-check DVT
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <div className="overflow-x-auto rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="w-10">#</TableHead>
+                        <TableHead>Address</TableHead>
+                        <TableHead>ICS</TableHead>
+                        <TableHead>Discord Handle</TableHead>
+                        <TableHead>Telegram</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {form.form.clusterMembers.map((member, index) => {
+                        const s = icsStatus.get(member.address);
+                        const linked =
+                          mergedByAddress.get(member.address)?.forms ?? [];
+                        const hasLinked = linked.length > 0;
+                        const warnSubRow = toneSoft.amber;
+                        return (
+                          <Fragment key={index}>
+                            <TableRow className={hasLinked ? "border-b-0" : ""}>
+                              <TableCell className="align-top text-xs font-medium text-muted-foreground">
+                                {index + 1}
+                              </TableCell>
+                              <TableCell className="align-top">
+                                <div className="flex items-center gap-1">
+                                  {hasLinked && (
+                                    <span
+                                      className="inline-flex shrink-0 items-center"
+                                      title={`Appears in ${linked.length} other DVT application${linked.length === 1 ? "" : "s"}`}
+                                      aria-label="Warning: appears in other DVT applications"
+                                    >
+                                      <AlertTriangle
+                                        className={cn("size-3.5", toneIcon.amber)}
+                                      />
+                                    </span>
+                                  )}
+                                  <AddressDisplay
+                                    address={member.address}
+                                    etherscanLink
+                                    className="max-w-none"
+                                  />
+                                </div>
+                              </TableCell>
+                              <TableCell className="align-top">
+                                <IcsStatusBadge
+                                  status={s?.status}
+                                  isLoading={s?.isLoading ?? false}
+                                  isError={s?.isError ?? false}
+                                />
+                              </TableCell>
+                              <TableCell className="align-top text-xs text-muted-foreground">
+                                {member.discordHandle || "—"}
+                              </TableCell>
+                              <TableCell className="align-top text-xs text-muted-foreground">
+                                {member.telegramUsername || "—"}
+                              </TableCell>
+                            </TableRow>
+                            {linked.map((linkedForm, lIdx) => {
+                              const isLast = lIdx === linked.length - 1;
+                              return (
                                 <TableRow
-                                  className={
-                                    hasLinked ? "border-b-0" : ""
-                                  }
+                                  key={`${index}-${linkedForm.id}`}
+                                  className={`${warnSubRow} ${
+                                    isLast ? "" : "border-b-0"
+                                  }`.trim()}
                                 >
-                                  <TableCell className="text-xs font-medium text-muted-foreground align-top">
-                                    {index + 1}
+                                  <TableCell
+                                    className={cn(
+                                      "text-center text-xs",
+                                      toneIcon.amber
+                                    )}
+                                  >
+                                    {isLast ? "└" : "├"}
                                   </TableCell>
-                                  <TableCell className="align-top">
-                                    <div className="flex items-center space-x-1">
-                                      {hasLinked && (
-                                        <span
-                                          className="inline-flex items-center flex-shrink-0"
-                                          title={`Appears in ${linked.length} other DVT application${linked.length === 1 ? "" : "s"}`}
-                                          aria-label="Warning: appears in other DVT applications"
-                                        >
-                                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                                        </span>
-                                      )}
-                                      <span className="font-mono text-xs break-all">
-                                        {member.address.length > 16
-                                          ? `${member.address.slice(0, 8)}...${member.address.slice(-6)}`
-                                          : member.address}
-                                      </span>
-                                      <a
-                                        href={`https://etherscan.io/address/${member.address}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex-shrink-0 text-blue-500 hover:text-blue-700"
-                                        title="View on Etherscan"
-                                      >
-                                        <ExternalLink className="w-3 h-3" />
-                                      </a>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="align-top">
-                                    <IcsStatusBadge
-                                      status={s?.status}
-                                      isLoading={s?.isLoading ?? false}
-                                      isError={s?.isError ?? false}
+                                  <TableCell colSpan={4} className="py-2">
+                                    <DvtLinkedFormRowContent
+                                      form={linkedForm}
+                                      matchedOn={linkedForm.matchedOn}
                                     />
                                   </TableCell>
-                                  <TableCell className="text-xs text-muted-foreground align-top">
-                                    {member.discordHandle || "—"}
-                                  </TableCell>
-                                  <TableCell className="text-xs text-muted-foreground align-top">
-                                    {member.telegramUsername || "—"}
-                                  </TableCell>
                                 </TableRow>
-                                {linked.map((linkedForm, lIdx) => {
-                                  const isLast = lIdx === linked.length - 1;
-                                  return (
-                                    <TableRow
-                                      key={`${index}-${linkedForm.id}`}
-                                      className={`${warnSubRow} ${
-                                        isLast ? "" : "border-b-0"
-                                      }`.trim()}
-                                    >
-                                      <TableCell className="text-xs text-amber-700 dark:text-amber-300 text-center">
-                                        {isLast ? "└" : "├"}
-                                      </TableCell>
-                                      <TableCell colSpan={4} className="py-2">
-                                        <DvtLinkedFormRowContent
-                                          form={linkedForm}
-                                          matchedOn={linkedForm.matchedOn}
-                                        />
-                                      </TableCell>
-                                    </TableRow>
-                                  );
-                                })}
-                              </Fragment>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Right Column - Comments */}
-              <div className="space-y-6">
-                <div className="text-sm font-semibold text-foreground border-b border-border pb-2 mb-4">
-                  Related Comments
+                              );
+                            })}
+                          </Fragment>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
                 </div>
+              </div>
+            )}
+          </div>
 
-                {/* Main Address Comment */}
+          {/* Right Column - Comments */}
+          <div className="space-y-6">
+            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Related comments
+            </div>
+
+            {/* Main Address Comment */}
+            <div className="space-y-2">
+              <FieldLabel icon={User}>Main Address Comment</FieldLabel>
+              <Input
+                value={comments.mainAddress || ""}
+                onChange={(e) =>
+                  handleCommentChange("mainAddress", e.target.value)
+                }
+                placeholder="Add comment to main address"
+                readOnly={isReadOnly}
+                disabled={isReadOnly}
+              />
+            </div>
+
+            {/* Discord Comment */}
+            <div className="space-y-2 border-t pt-5">
+              <FieldLabel icon={MessageSquare}>Discord Comment</FieldLabel>
+              <Input
+                value={comments.discordLink || ""}
+                onChange={(e) =>
+                  handleCommentChange("discordLink", e.target.value)
+                }
+                placeholder="Add comment to Discord link"
+                readOnly={isReadOnly}
+                disabled={isReadOnly}
+              />
+            </div>
+
+            {/* Telegram Comment */}
+            {form.form.telegramUsername && (
+              <div className="space-y-2 border-t pt-5">
+                <FieldLabel icon={Send}>Telegram Comment</FieldLabel>
+                <Input
+                  value={comments.telegramUsername || ""}
+                  onChange={(e) =>
+                    handleCommentChange("telegramUsername", e.target.value)
+                  }
+                  placeholder="Add comment to Telegram username"
+                  readOnly={isReadOnly}
+                  disabled={isReadOnly}
+                />
+              </div>
+            )}
+
+            {/* Cluster Member Comments */}
+            {form.form.clusterMembers && form.form.clusterMembers.length > 0 && (
+              <div className="border-t pt-5">
+                <div className="mb-3">
+                  <FieldLabel icon={Users}>Cluster Member Comments</FieldLabel>
+                </div>
                 <div className="space-y-3">
-                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center">
-                    <User className="w-3 h-3 mr-1" />
-                    Main Address Comment
-                  </Label>
-                  <Input
-                    value={comments.mainAddress || ""}
-                    onChange={(e) =>
-                      handleCommentChange("mainAddress", e.target.value)
-                    }
-                    placeholder="Add comment to main address"
-                    readOnly={isReadOnly}
-                    disabled={isReadOnly}
-                  />
-                </div>
-
-                {/* Discord Comment */}
-                <div className="space-y-3 border-t border-border pt-4">
-                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center">
-                    <MessageSquare className="w-3 h-3 mr-1" />
-                    Discord Comment
-                  </Label>
-                  <Input
-                    value={comments.discordLink || ""}
-                    onChange={(e) =>
-                      handleCommentChange("discordLink", e.target.value)
-                    }
-                    placeholder="Add comment to Discord link"
-                    readOnly={isReadOnly}
-                    disabled={isReadOnly}
-                  />
-                </div>
-
-                {/* Telegram Comment */}
-                {form.form.telegramUsername && (
-                  <div className="space-y-3 border-t border-border pt-4">
-                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center">
-                      <Send className="w-3 h-3 mr-1" />
-                      Telegram Comment
-                    </Label>
-                    <Input
-                      value={comments.telegramUsername || ""}
-                      onChange={(e) =>
-                        handleCommentChange("telegramUsername", e.target.value)
-                      }
-                      placeholder="Add comment to Telegram username"
-                      readOnly={isReadOnly}
-                      disabled={isReadOnly}
-                    />
-                  </div>
-                )}
-
-                {/* Cluster Member Comments */}
-                {form.form.clusterMembers && form.form.clusterMembers.length > 0 && (
-                  <div className="border-t border-border pt-4">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center mb-3">
-                      <Users className="w-3 h-3 mr-1" />
-                      Cluster Member Comments
-                    </label>
-                    <div className="space-y-3">
-                      {form.form.clusterMembers.map((member, index) => (
-                        <div
-                          key={index}
-                          className="bg-muted/50 rounded-lg p-3"
-                        >
-                          <div className="mb-2">
-                            <span className="text-xs bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded font-medium">
-                              Member #{index + 1} Comment
-                            </span>
-                            <span className="ml-2 font-mono text-xs text-muted-foreground">
-                              {member.address.slice(0, 8)}...{member.address.slice(-6)}
-                            </span>
-                          </div>
-                          <Input
-                            value={comments.clusterMembers?.[index] || ""}
-                            onChange={(e) =>
-                              handleClusterMemberCommentChange(
-                                index,
-                                e.target.value
-                              )
-                            }
-                            placeholder={`Add comment to member ${index + 1}`}
-                            readOnly={isReadOnly}
-                            disabled={isReadOnly}
-                            className="text-xs"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Other DVT Forms from Same Address Section */}
-        <OtherFormsFromAddress
-          currentFormId={form.id}
-          mainAddress={form.form.mainAddress}
-          resource="dvt-forms"
-          basePath="/dvt-forms"
-          proofLabel="DVT Proof"
-        />
-
-        {/* Save Review Block */}
-        <Card>
-          <CardHeader className="text-center pb-6">
-            <CardTitle className="text-2xl font-bold mb-2">
-              Save Review
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-8">
-            {/* Review Status Selection */}
-            <div className="mb-8">
-              <h3 className="text-xl font-bold mb-6 text-center">
-                Review Decision
-              </h3>
-              <div className="flex justify-center gap-3">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={status === "REVIEW" ? "default" : "outline"}
-                        size="lg"
-                        onClick={() => handleStatusChange("REVIEW")}
-                        disabled={isReadOnly}
-                        className={`h-auto flex flex-col gap-2 px-8 py-5 ${
-                          status === "REVIEW"
-                            ? "bg-amber-500 hover:bg-amber-600 border-amber-500 text-white"
-                            : "hover:border-amber-200 dark:hover:border-amber-700 hover:bg-amber-50/50 dark:hover:bg-amber-900/30"
-                        }`}
-                      >
-                        <Clock className="w-5 h-5" />
-                        <div className="text-center">
-                          <div className="font-semibold">Under Review</div>
-                          <div className="text-xs opacity-75 mt-0.5">
-                            Pending decision
-                          </div>
-                        </div>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Mark as under review</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={status === "APPROVED" ? "default" : "outline"}
-                        size="lg"
-                        onClick={() => handleStatusChange("APPROVED")}
-                        disabled={isReadOnly}
-                        className={`h-auto flex flex-col gap-2 px-8 py-5 ${
-                          status === "APPROVED"
-                            ? "bg-green-600 hover:bg-green-700 border-green-600 text-white"
-                            : "hover:border-green-200 dark:hover:border-green-700 hover:bg-green-50/50 dark:hover:bg-green-900/30"
-                        }`}
-                      >
-                        <CircleCheck className="w-5 h-5" />
-                        <div className="text-center">
-                          <div className="font-semibold">Approved</div>
-                          <div className="text-xs opacity-75 mt-0.5">
-                            Accept form
-                          </div>
-                        </div>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Approve this submission</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={status === "REJECTED" ? "default" : "outline"}
-                        size="lg"
-                        onClick={() => handleStatusChange("REJECTED")}
-                        disabled={isReadOnly}
-                        className={`h-auto flex flex-col gap-2 px-8 py-5 ${
-                          status === "REJECTED"
-                            ? "bg-red-600 hover:bg-red-700 border-red-600 text-white"
-                            : "hover:border-red-200 dark:hover:border-red-700 hover:bg-red-50/50 dark:hover:bg-red-900/30"
-                        }`}
-                      >
-                        <CircleX className="w-5 h-5" />
-                        <div className="text-center">
-                          <div className="font-semibold">Rejected</div>
-                          <div className="text-xs opacity-75 mt-0.5">
-                            Decline form
-                          </div>
-                        </div>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Reject this submission</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            </div>
-
-            {/* Set DVT Proof as Issued - Show when status is approved */}
-            {status === "APPROVED" && !isReadOnly && (
-              <>
-                <Separator className="my-8" />
-                <div className="mt-6 p-6 bg-muted/50 rounded-lg border border-border">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      {issued ? (
-                        <CheckCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                      ) : (
-                        <CheckCircle className="w-5 h-5 text-muted-foreground" />
-                      )}
-                      <div>
-                        <label
-                          htmlFor="issued-switch"
-                          className="text-sm font-semibold text-foreground cursor-pointer"
-                        >
-                          DVT Proof issued
-                        </label>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Form will be read-only after DVT Proof is issued
-                        </p>
+                  {form.form.clusterMembers.map((member, index) => (
+                    <div key={index} className="rounded-md bg-muted/50 p-3">
+                      <div className="mb-2 flex items-center gap-2">
+                        <SoftBadge tone="emerald" size="sm">
+                          Member #{index + 1}
+                        </SoftBadge>
+                        <AddressDisplay
+                          address={member.address}
+                          className="max-w-none"
+                        />
                       </div>
+                      <Input
+                        value={comments.clusterMembers?.[index] || ""}
+                        onChange={(e) =>
+                          handleClusterMemberCommentChange(
+                            index,
+                            e.target.value
+                          )
+                        }
+                        placeholder={`Add comment to member ${index + 1}`}
+                        readOnly={isReadOnly}
+                        disabled={isReadOnly}
+                        className="text-xs"
+                      />
                     </div>
-                    <Switch
-                      id="issued-switch"
-                      checked={issued}
-                      onCheckedChange={handleIssuedChange}
-                      disabled={isFormIssued}
-                      className="data-[state=checked]:bg-green-600"
-                    />
-                  </div>
+                  ))}
                 </div>
-              </>
+              </div>
             )}
+          </div>
+        </div>
+      </Panel>
 
-            {/* Rejection Reason - Only show for rejected status */}
-            {status === "REJECTED" && (
-              <>
-                <Separator className="my-8" />
-                <div className="space-y-4">
-                  <Label className="text-sm font-semibold flex items-center">
-                    <CircleX className="w-4 h-4 text-red-500 mr-2" />
-                    Rejection Reason
-                  </Label>
-                  <Textarea
-                    value={comments.reason || ""}
-                    onChange={(e) =>
-                      handleCommentChange("reason", e.target.value)
-                    }
-                    placeholder="Please provide a clear reason for rejection"
-                    readOnly={isReadOnly}
-                    disabled={isReadOnly}
-                    className="min-h-20"
-                  />
-                </div>
-              </>
-            )}
+      {/* Other DVT Forms from Same Address Section */}
+      <OtherFormsFromAddress
+        currentFormId={form.id}
+        mainAddress={form.form.mainAddress}
+        resource="dvt-forms"
+        basePath="/dvt-forms"
+        proofLabel="DVT Proof"
+      />
 
-            {/* Save Button */}
-            {!isReadOnly && (
-              <>
-                <Separator className="my-8" />
-                <div className="space-y-4">
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={isUpdating || !hasChanges}
-                    className="w-full h-14 text-lg font-bold"
-                    size="lg"
-                  >
-                    {isUpdating ? (
-                      <>
-                        <Loader2 className="w-5 h-5 mr-3 animate-spin" />
-                        <span>Saving Review...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-5 h-5 mr-3" />
-                        <span>Save Review</span>
-                      </>
-                    )}
-                  </Button>
+      {/* Save Review Block */}
+      <Panel className="overflow-hidden">
+        <div className="border-b px-6 py-4">
+          <h2 className="text-sm font-semibold">Review decision</h2>
+        </div>
+        <div className="space-y-6 p-6">
+          {/* Review Status Selection */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <TooltipProvider>
+              {DECISIONS.map((decision) => {
+                const isActive = status === decision.value;
+                const { Icon } = decision;
+                return (
+                  <Tooltip key={decision.value}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={isActive ? "default" : "outline"}
+                        onClick={() => handleStatusChange(decision.value)}
+                        disabled={isReadOnly}
+                        className={cn(
+                          "h-auto flex-col gap-2 py-4",
+                          isActive && decision.activeClass
+                        )}
+                      >
+                        <Icon className="size-5" />
+                        <div className="text-center">
+                          <div className="font-semibold">{decision.label}</div>
+                          <div className="mt-0.5 text-xs opacity-75">
+                            {decision.hint}
+                          </div>
+                        </div>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{decision.tooltip}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </TooltipProvider>
+          </div>
 
-                  {/* Back to List Button */}
-                  <Button
-                    variant="outline"
-                    onClick={() => list("dvt-forms")}
-                    className="w-full h-12 text-base font-medium"
-                    size="lg"
-                  >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to List
-                  </Button>
-
-                  {hasChanges && (
-                    <Alert className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/30">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription className="text-sm font-medium">
-                        You have unsaved changes
-                      </AlertDescription>
-                    </Alert>
+          {/* Set DVT Proof as Issued - Show when status is approved */}
+          {status === "APPROVED" && !isReadOnly && (
+            <div className="flex items-center justify-between rounded-md border bg-muted/50 p-4">
+              <div className="flex items-center gap-3">
+                <CheckCircle
+                  className={cn(
+                    "size-5",
+                    issued ? toneIcon.emerald : "text-muted-foreground"
                   )}
+                />
+                <div>
+                  <label
+                    htmlFor="issued-switch"
+                    className="cursor-pointer text-sm font-medium text-foreground"
+                  >
+                    DVT Proof issued
+                  </label>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Form will be read-only after DVT Proof is issued
+                  </p>
                 </div>
-              </>
-            )}
+              </div>
+              <Switch
+                id="issued-switch"
+                checked={issued}
+                onCheckedChange={handleIssuedChange}
+                disabled={isFormIssued}
+              />
+            </div>
+          )}
 
-            {/* Read-only Notice */}
-            {isReadOnly && (
-              <div className="py-6 space-y-4">
-                {isFormIssued ? (
-                  <Alert className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/30">
-                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                    <AlertTitle className="text-green-800 dark:text-green-200">
-                      DVT Proof Issued
-                    </AlertTitle>
-                    <AlertDescription className="text-green-700 dark:text-green-300">
-                      DVT Proof has been issued for this form and can no longer
-                      be edited.
-                    </AlertDescription>
-                  </Alert>
-                ) : isFormOutdated ? (
-                  <Alert className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30">
-                    <Archive className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                    <AlertTitle className="text-amber-800 dark:text-amber-200">
-                      Form Outdated
-                    </AlertTitle>
-                    <AlertDescription className="text-amber-700 dark:text-amber-300">
-                      This form is outdated and has been replaced by a newer
-                      submission for the same address. It cannot be modified.
-                    </AlertDescription>
-                  </Alert>
-                ) : isViewer ? (
-                  <Alert className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30">
-                    <Eye className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                    <AlertTitle className="text-blue-800 dark:text-blue-200">
-                      View-Only Access
-                    </AlertTitle>
-                    <AlertDescription className="text-blue-700 dark:text-blue-300">
-                      Viewer role has read-only access to DVT form reviews.
-                    </AlertDescription>
-                  </Alert>
-                ) : (
-                  <Alert className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30">
-                    <Shield className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                    <AlertTitle className="text-amber-800 dark:text-amber-200">
-                      Read-Only Mode
-                    </AlertTitle>
-                    <AlertDescription className="text-amber-700 dark:text-amber-300">
-                      Supervisor role has view-only access to DVT form reviews.
-                    </AlertDescription>
-                  </Alert>
-                )}
+          {/* Rejection Reason - Only show for rejected status */}
+          {status === "REJECTED" && (
+            <div className="space-y-2 border-t pt-6">
+              <Label className="flex items-center gap-1.5 text-sm font-medium">
+                <CircleX className={cn("size-4", toneIcon.red)} />
+                Rejection reason
+              </Label>
+              <Textarea
+                value={comments.reason || ""}
+                onChange={(e) => handleCommentChange("reason", e.target.value)}
+                placeholder="Please provide a clear reason for rejection"
+                readOnly={isReadOnly}
+                disabled={isReadOnly}
+                className="min-h-20"
+              />
+            </div>
+          )}
 
-                {/* Back to List Button for Read-only Mode */}
+          {/* Save Button */}
+          {!isReadOnly && (
+            <div className="space-y-3 border-t pt-6">
+              {hasChanges && (
+                <Alert className={cn(toneBorder.amber, toneTint.amber)}>
+                  <AlertTriangle className={cn("size-4", toneIcon.amber)} />
+                  <AlertDescription className="text-sm font-medium">
+                    You have unsaved changes
+                  </AlertDescription>
+                </Alert>
+              )}
+              <div className="flex flex-col gap-3 sm:flex-row-reverse">
                 <Button
-                  variant="outline"
-                  onClick={() => list("dvt-forms")}
-                  className="w-full h-12 text-base font-medium"
-                  size="lg"
+                  onClick={handleSubmit}
+                  disabled={isUpdating || !hasChanges}
+                  className="sm:flex-1"
                 >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to List
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      Saving review…
+                    </>
+                  ) : (
+                    <>
+                      <Save className="size-4" />
+                      Save review
+                    </>
+                  )}
+                </Button>
+                <Button variant="outline" onClick={() => list("dvt-forms")}>
+                  <ArrowLeft className="size-4" />
+                  Back to list
                 </Button>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            </div>
+          )}
+
+          {/* Read-only Notice */}
+          {isReadOnly && (
+            <div className="space-y-4 border-t pt-6">
+              {isFormIssued ? (
+                <Alert className={cn(toneBorder.emerald, toneTint.emerald)}>
+                  <CheckCircle className={cn("size-4", toneIcon.emerald)} />
+                  <AlertTitle>DVT Proof issued</AlertTitle>
+                  <AlertDescription>
+                    DVT Proof has been issued for this form and can no longer be
+                    edited.
+                  </AlertDescription>
+                </Alert>
+              ) : isFormOutdated ? (
+                <Alert className={cn(toneBorder.amber, toneTint.amber)}>
+                  <Archive className={cn("size-4", toneIcon.amber)} />
+                  <AlertTitle>Form outdated</AlertTitle>
+                  <AlertDescription>
+                    This form is outdated and has been replaced by a newer
+                    submission for the same address. It cannot be modified.
+                  </AlertDescription>
+                </Alert>
+              ) : isViewer ? (
+                <Alert>
+                  <Eye className="size-4 text-primary" />
+                  <AlertTitle>View-only access</AlertTitle>
+                  <AlertDescription>
+                    Viewer role has read-only access to DVT form reviews.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <Alert>
+                  <Shield className="size-4 text-muted-foreground" />
+                  <AlertTitle>Read-only mode</AlertTitle>
+                  <AlertDescription>
+                    Supervisor role has view-only access to DVT form reviews.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Back to List Button for Read-only Mode */}
+              <Button variant="outline" onClick={() => list("dvt-forms")}>
+                <ArrowLeft className="size-4" />
+                Back to list
+              </Button>
+            </div>
+          )}
+        </div>
+      </Panel>
     </div>
   );
 };
