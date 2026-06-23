@@ -1,0 +1,33 @@
+# pnpm settings (pnpm 10+ reads project-wide config from here, not package.json).
+overrides:
+  axios: ^1.16.0
+  # Pin the viem/ox cluster to the versions yarn.lock resolved (the graph
+  # running in prod). Fresh pnpm resolution bumped viem 2.48.11 -> 2.52.2, whose
+  # experimental `tempo` module imports symbols from ox's matching experimental
+  # source — breaking both tsc and the bundler. Reverting to yarn's versions
+  # drops `tempo` from the graph entirely. ox is scoped to the 0.14 line so the
+  # unrelated 0.6.x / 0.9.x consumers are untouched.
+  viem: 2.48.11
+  "ox@>=0.14.0 <0.15.0": 0.14.20
+  # Security: ws <8.21.0 has a memory-exhaustion DoS (GHSA-96hv-2xvq-fx4p) and
+  # uninitialized-memory disclosure (GHSA-58qx-3vcg-4xpx). Scoped to the 8.x
+  # range so the unrelated ws@7 consumer is untouched; same major, API-compatible.
+  "ws@>=8.0.0 <8.21.0": ^8.21.0
+  # Security: uuid <11.1.1 misses a buffer bounds check (GHSA-w5hq-g745-h8pq).
+  # Only reached via metamask packages that use the v4 random API (named export,
+  # stable across 8/9/10/11), so the 8.3.2 + 9.0.1 paths bump cleanly to 11.
+  uuid: ^11.1.1
+  # React 19: the transitive use-sync-external-store shim caps its peer range at
+  # React 18. 1.4.0 adds React 19 and is an API-identical delegating shim, so
+  # this just clears the unmet-peer warning (React 19 has useSyncExternalStore).
+  use-sync-external-store: ^1.4.0
+
+# pnpm blocks dependency build scripts by default (supply-chain hardening).
+# These are Node-only native speedups (ws WebSocket accelerators, keccak
+# binding) that the browser bundle never uses — viem/ethers use pure-JS crypto
+# in-browser. Skipped so installs stay clean and the Alpine image needs no
+# native toolchain.
+allowBuilds:
+  bufferutil: false
+  keccak: false
+  utf-8-validate: false

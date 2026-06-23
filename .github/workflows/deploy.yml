@@ -21,17 +21,24 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    # corepack ships with Node and provides pnpm pinned by package.json's
+    # "packageManager" field — must run before setup-node so cache: 'pnpm' can
+    # locate the pnpm store. (Third-party actions like pnpm/action-setup are
+    # blocked by the org's allowed-actions policy.)
+    - name: Enable corepack
+      run: corepack enable
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '24'
-        cache: 'yarn'
+        cache: 'pnpm'
 
     - name: Install dependencies
-      run: yarn install
+      run: pnpm install --frozen-lockfile
 
     - name: Build
-      run: yarn build
+      run: pnpm build
 
     - name: Setup Pages
       uses: actions/configure-pages@v5

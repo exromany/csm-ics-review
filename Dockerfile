@@ -2,17 +2,22 @@
 # You can find the Dockerfile for nginx in the following link:
 # https://github.com/refinedev/dockerfiles/blob/main/vite/Dockerfile.nginx
 FROM node:24-alpine AS base
+# corepack ships with Node and provides the pnpm shim pinned by the
+# "packageManager" field in package.json — no third-party install action needed.
+RUN corepack enable
 RUN addgroup -S refine && adduser -S refine -G refine
 WORKDIR /app/refine
 RUN chown refine:refine /app/refine
 
 FROM base AS deps
 
-COPY package.json yarn.lock* .npmrc* ./
+# pnpm-workspace.yaml carries overrides + build-script policy and must be present
+# for the lockfile to install reproducibly.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc* ./
 
 RUN \
-  if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
-  else echo "yarn.lock not found." && exit 1; \
+  if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile; \
+  else echo "pnpm-lock.yaml not found." && exit 1; \
   fi
 
 FROM base AS builder
@@ -24,7 +29,7 @@ COPY --from=deps /app/refine/node_modules ./node_modules
 
 COPY . .
 
-RUN yarn build --mode $BUILD_MODE
+RUN pnpm build --mode $BUILD_MODE
 
 FROM base AS runner
 

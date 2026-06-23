@@ -159,7 +159,7 @@ export const authProvider: AuthProvider = {
           redirectTo: "/login",
         };
       }
-    } catch (error) {
+    } catch {
       return {
         authenticated: false,
         redirectTo: "/login",
@@ -200,7 +200,7 @@ export const authProvider: AuthProvider = {
             avatar: `https://effigy.im/a/${data.address}.png`, // Use effigy for Ethereum avatars
           };
         }
-      } catch (error) {
+      } catch {
         // Silent fail, fallback to stored data
       }
 
