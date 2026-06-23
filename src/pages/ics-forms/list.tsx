@@ -1,55 +1,35 @@
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
+  AddressDisplay,
+  Button,
+  ColumnLabel,
+  DataPagination,
+  DateRangeFilter,
+  EmptyState,
+  FilterToolbar,
+  notify,
+  PageHeader,
+  Panel,
+  QueryErrorState,
+  ReviewerDisplay,
+  SearchInput,
+  SegmentedControl,
+  SortableHeader,
+  StatusBadge,
+  StatusPill,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+  TableSkeleton,
+  toneIcon,
+} from "@/components/ui";
 import { useDataProvider, useList } from "@refinedev/core";
-import {
-  Archive,
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
-  CheckCircle,
-  Download,
-  Edit,
-  Eye,
-  FileText,
-  Filter,
-  RotateCcw,
-  Search,
-} from "lucide-react";
+import { Download, Edit, Eye, FileText, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
+import { cn } from "@/lib/utils";
 import { usePersistentTableState } from "../../hooks/usePersistentTableState";
 import { useTableFilters } from "../../hooks/useTableFilters";
 import type { AdminIcsFormItemDto, IcsFormStatus } from "../../types/api";
@@ -58,9 +38,50 @@ import {
   generateCsvContent,
   generateFilename,
 } from "../../utils/csvExport";
-import { getPageNumbers } from "../../utils/pagination";
-import { StatusBadge } from "../../components/ui/status-badge";
-import { AddressDisplay, ReviewerDisplay } from "../../components/ui/address-display";
+import { getScoreBreakdown, getScoreStatus } from "../../utils/scoring";
+
+type IcsSortField =
+  | "id"
+  | "mainAddress"
+  | "status"
+  | "issued"
+  | "outdated"
+  | "createdAt";
+
+// `sortable` columns map to backend sort fields. "Score" is the capped total
+// derived client-side from `scores` (no backend sort field), so it renders a
+// plain label — sorting it would only reorder the current page, which lies under
+// server-side pagination.
+type IcsColumn = { field: string; label: string; sortable: boolean };
+
+const COLUMNS: IcsColumn[] = [
+  { field: "id", label: "ID", sortable: true },
+  { field: "mainAddress", label: "Main Address", sortable: true },
+  { field: "status", label: "Status", sortable: true },
+  { field: "totalScore", label: "Score", sortable: false },
+  { field: "issued", label: "ICS Proof", sortable: true },
+  { field: "outdated", label: "Outdated", sortable: true },
+  { field: "createdAt", label: "Submitted", sortable: true },
+];
+
+const STATUS_OPTIONS: { label: string; value: IcsFormStatus | undefined }[] = [
+  { label: "All", value: undefined },
+  { label: "Review", value: "REVIEW" },
+  { label: "Approved", value: "APPROVED" },
+  { label: "Rejected", value: "REJECTED" },
+];
+
+const ISSUED_OPTIONS: { label: string; value: boolean | undefined }[] = [
+  { label: "All", value: undefined },
+  { label: "Issued", value: true },
+  { label: "Not issued", value: false },
+];
+
+const OUTDATED_OPTIONS: { label: string; value: boolean | undefined }[] = [
+  { label: "All", value: undefined },
+  { label: "Current", value: false },
+  { label: "Outdated", value: true },
+];
 
 export const IcsFormsList = () => {
   const dataProvider = useDataProvider();
@@ -77,13 +98,14 @@ export const IcsFormsList = () => {
     updateCurrentPage,
     updatePageSize,
     resetTableState,
+    hasStoredState,
   } = usePersistentTableState();
 
   const [isExporting, setIsExporting] = useState(false);
 
   const {
     result: data,
-    query: { isLoading },
+    query: { isLoading, isError, refetch, isFetching },
   } = useList<AdminIcsFormItemDto>({
     resource: "ics-forms",
     pagination: {
@@ -131,37 +153,32 @@ export const IcsFormsList = () => {
     resetTableState();
   };
 
-  const handlePageSizeChange = (newPageSize: string) => {
-    const newSize = parseInt(newPageSize);
+  const handlePageSizeChange = (newSize: number) => {
     updatePageSize(newSize);
   };
 
   const handleCsvExport = async () => {
     if (isExporting) return;
 
+    const total = data?.total ?? 0;
+    if (total === 0) {
+      notify.error("No forms to export");
+      return;
+    }
+
     setIsExporting(true);
 
     try {
       const exportFilters = buildFilters(filterValues);
 
-      // Fetch all matching records (no pagination)
       const exportData = await dataProvider().getList<AdminIcsFormItemDto>({
         resource: "ics-forms",
-        pagination: {
-          currentPage: 1,
-          pageSize: 9999, // Large number to get all records
-        },
+        pagination: { currentPage: 1, pageSize: total },
         filters: exportFilters,
-        sorters: [
-          {
-            field: sortField,
-            order: sortOrder,
-          },
-        ],
+        sorters: [{ field: sortField, order: sortOrder }],
       });
 
       const csvContent = generateCsvContent(exportData.data);
-
       const filename = generateFilename({
         status: filterValues.status as IcsFormStatus,
         address: filterValues.address as string,
@@ -172,575 +189,270 @@ export const IcsFormsList = () => {
       });
 
       downloadCsv(csvContent, filename);
+      notify.success(
+        `Exported ${exportData.data.length} form${
+          exportData.data.length === 1 ? "" : "s"
+        } to CSV`
+      );
     } catch (error) {
       console.error("CSV export failed:", error);
+      notify.error("CSV export failed. Please try again.");
     } finally {
       setIsExporting(false);
     }
   };
 
-  const totalPages = Math.ceil((data?.total || 0) / pageSize);
-  const pageNumbers = getPageNumbers(currentPage, totalPages);
+  const rows = data?.data ?? [];
+  const isEmpty = !isLoading && !isError && rows.length === 0;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">ICS Forms Review</h1>
-        <p className="text-muted-foreground">
-          Review and manage Individual Customer Staker form submissions
-        </p>
-      </div>
+      {/* Header */}
+      <PageHeader
+        title="ICS Forms"
+        count={data?.total}
+        description="Review and manage Individual Customer Staker form submissions."
+        actions={
+          <Button
+            variant="outline"
+            onClick={handleCsvExport}
+            disabled={isExporting || !data?.total}
+          >
+            {isExporting ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Download className="size-4" />
+            )}
+            {isExporting ? "Exporting…" : "Download CSV"}
+          </Button>
+        }
+      />
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-lg flex items-center">
-                <Filter className="w-5 h-5 mr-2" />
-                Filters & Search
-              </CardTitle>
-              <CardDescription>
-                Filter ICS forms by multiple criteria
-              </CardDescription>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCsvExport}
-                disabled={isExporting}
-              >
-                <Download className="w-4 h-4 mr-2" />
-                {isExporting ? "Exporting..." : "Download CSV"}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={clearFilters}
-                title="Reset all filters, sorting, and pagination to defaults"
-              >
-                <RotateCcw className="w-4 h-4 mr-2" />
-                Reset Filters
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 lg:gap-6">
-            {/* Status Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Status</label>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={!filterValues.status ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleStatusFilter()}
-                  className="text-xs"
-                >
-                  All
-                </Button>
-                {["REVIEW", "APPROVED", "REJECTED"].map((status) => (
-                  <Button
-                    key={status}
-                    variant={
-                      filterValues.status === status ? "default" : "outline"
-                    }
-                    size="sm"
-                    onClick={() => handleStatusFilter(status as IcsFormStatus)}
-                    className="text-xs"
-                  >
-                    {status}
-                  </Button>
+      {/* Unified panel: toolbar → table → footer */}
+      <Panel className="overflow-hidden">
+        {/* Filter toolbar */}
+        <FilterToolbar onReset={clearFilters} resetDisabled={!hasStoredState()}>
+          <SearchInput
+            mono
+            id="address-search"
+            type="text"
+            aria-label="Search by address"
+            placeholder="Search by address (0x…)"
+            value={(filterValues.address as string) || ""}
+            onDebouncedChange={handleAddressSearch}
+            containerClassName="w-full sm:w-72"
+          />
+          <DateRangeFilter
+            fromLabel="Submitted from date"
+            toLabel="Submitted to date"
+            value={{
+              from: (filterValues.startDate as string) || "",
+              to: (filterValues.endDate as string) || "",
+            }}
+            onChange={({ from, to }) => handleDateRangeFilter(from, to)}
+          />
+          <FilterToolbar.Filters>
+            <SegmentedControl
+              aria-label="Filter by status"
+              options={STATUS_OPTIONS}
+              value={filterValues.status as IcsFormStatus | undefined}
+              onChange={handleStatusFilter}
+            />
+            <SegmentedControl
+              aria-label="Filter by ICS proof status"
+              options={ISSUED_OPTIONS}
+              value={filterValues.issued as boolean | undefined}
+              onChange={handleIssuedFilter}
+            />
+            <SegmentedControl
+              aria-label="Filter by form freshness"
+              options={OUTDATED_OPTIONS}
+              value={filterValues.outdated as boolean | undefined}
+              onChange={handleOutdatedFilter}
+            />
+          </FilterToolbar.Filters>
+        </FilterToolbar>
+
+        {/* Table */}
+          <Table
+            containerClassName="max-h-[70vh]"
+            className="[&_td]:px-4 [&_td]:py-3 [&_th]:h-auto [&_th]:px-4 [&_th]:py-2.5"
+          >
+            <TableHeader sticky>
+              <TableRow className="hover:bg-transparent">
+                {COLUMNS.map((col) => (
+                  <TableHead key={col.field}>
+                    {col.sortable ? (
+                      <SortableHeader
+                        label={col.label}
+                        active={sortField === col.field}
+                        order={sortOrder}
+                        onClick={() => handleSort(col.field as IcsSortField)}
+                      />
+                    ) : (
+                      <ColumnLabel>{col.label}</ColumnLabel>
+                    )}
+                  </TableHead>
                 ))}
-              </div>
-            </div>
-
-            {/* Issued Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">ICS Proof Status</label>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={
-                    typeof filterValues.issued === "undefined"
-                      ? "default"
-                      : "outline"
-                  }
-                  size="sm"
-                  onClick={() => handleIssuedFilter(undefined)}
-                  className="text-xs"
-                >
-                  All
-                </Button>
-                <Button
-                  variant={filterValues.issued === true ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleIssuedFilter(true)}
-                  className="text-xs"
-                >
-                  Issued
-                </Button>
-                <Button
-                  variant={
-                    filterValues.issued === false ? "default" : "outline"
-                  }
-                  size="sm"
-                  onClick={() => handleIssuedFilter(false)}
-                  className="text-xs"
-                >
-                  Not Issued
-                </Button>
-              </div>
-            </div>
-
-            {/* Outdated Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Form Status</label>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={
-                    typeof filterValues.outdated === "undefined"
-                      ? "default"
-                      : "outline"
-                  }
-                  size="sm"
-                  onClick={() => handleOutdatedFilter(undefined)}
-                  className="text-xs"
-                >
-                  All
-                </Button>
-                <Button
-                  variant={
-                    filterValues.outdated === false ? "default" : "outline"
-                  }
-                  size="sm"
-                  onClick={() => handleOutdatedFilter(false)}
-                  className="text-xs"
-                >
-                  Current
-                </Button>
-                <Button
-                  variant={
-                    filterValues.outdated === true ? "default" : "outline"
-                  }
-                  size="sm"
-                  onClick={() => handleOutdatedFilter(true)}
-                  className="text-xs"
-                >
-                  Outdated
-                </Button>
-              </div>
-            </div>
-
-            {/* Address Search */}
-            <div className="space-y-2">
-              <label htmlFor="address-search" className="text-sm font-medium">
-                Search by Address
-              </label>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="address-search"
-                  type="text"
-                  placeholder="0x..."
-                  value={(filterValues.address as string) || ""}
-                  onChange={(e) => handleAddressSearch(e.target.value)}
-                  className="pl-10"
+                <TableHead>
+                  <ColumnLabel>Last Reviewer</ColumnLabel>
+                </TableHead>
+                <TableHead className="text-right">
+                  <ColumnLabel>Actions</ColumnLabel>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading && (
+                <TableSkeleton
+                  columns={[
+                    { width: "h-4 w-8" },
+                    { width: "h-5 w-32" },
+                    { width: "h-5 w-20" },
+                    { width: "h-5 w-10" },
+                    { width: "h-5 w-20" },
+                    { width: "h-5 w-16" },
+                    { width: "h-4 w-20" },
+                    { width: "h-4 w-20" },
+                    { width: "h-7 w-16", align: "right" },
+                  ]}
                 />
-              </div>
-            </div>
-
-            {/* Date Range Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                Submission Date Range
-              </label>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Input
-                  type="date"
-                  value={(filterValues.startDate as string) || ""}
-                  onChange={(e) =>
-                    handleDateRangeFilter(
-                      e.target.value,
-                      filterValues.endDate as string
-                    )
-                  }
-                  placeholder="Start Date"
-                  className="text-xs min-w-0"
-                />
-                <Input
-                  type="date"
-                  value={(filterValues.endDate as string) || ""}
-                  onChange={(e) =>
-                    handleDateRangeFilter(
-                      filterValues.startDate as string,
-                      e.target.value
-                    )
-                  }
-                  placeholder="End Date"
-                  className="text-xs min-w-0"
-                />
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">
-            ICS Forms ({data?.total || 0})
-          </CardTitle>
-          <CardDescription>
-            {isLoading
-              ? "Loading ICS forms..."
-              : `${data?.data?.length || 0} ICS forms displayed`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-3">
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Main Address</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>ICS Proof</TableHead>
-                      <TableHead>Outdated</TableHead>
-                      <TableHead>Submitted</TableHead>
-                      <TableHead>Last Reviewer</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <TableRow key={i}>
-                        <TableCell>
-                          <Skeleton className="h-4 w-8" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-4 w-32" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-6 w-20" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-6 w-16" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-6 w-16" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-4 w-24" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-4 w-20" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-8 w-16" />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          ) : (
-            <div className="w-full overflow-x-auto">
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>
-                        <Button
-                          variant="ghost"
-                          onClick={() => handleSort("id")}
-                          className="h-auto p-0 font-semibold hover:bg-transparent"
-                        >
-                          ID
-                          {sortField === "id" &&
-                            (sortOrder === "asc" ? (
-                              <ArrowUp className="ml-2 h-4 w-4" />
-                            ) : (
-                              <ArrowDown className="ml-2 h-4 w-4" />
-                            ))}
-                          {sortField !== "id" && (
-                            <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />
-                          )}
-                        </Button>
-                      </TableHead>
-                      <TableHead>
-                        <Button
-                          variant="ghost"
-                          onClick={() => handleSort("mainAddress")}
-                          className="h-auto p-0 font-semibold hover:bg-transparent"
-                        >
-                          Main Address
-                          {sortField === "mainAddress" &&
-                            (sortOrder === "asc" ? (
-                              <ArrowUp className="ml-2 h-4 w-4" />
-                            ) : (
-                              <ArrowDown className="ml-2 h-4 w-4" />
-                            ))}
-                          {sortField !== "mainAddress" && (
-                            <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />
-                          )}
-                        </Button>
-                      </TableHead>
-                      <TableHead>
-                        <Button
-                          variant="ghost"
-                          onClick={() => handleSort("status")}
-                          className="h-auto p-0 font-semibold hover:bg-transparent"
-                        >
-                          Status
-                          {sortField === "status" &&
-                            (sortOrder === "asc" ? (
-                              <ArrowUp className="ml-2 h-4 w-4" />
-                            ) : (
-                              <ArrowDown className="ml-2 h-4 w-4" />
-                            ))}
-                          {sortField !== "status" && (
-                            <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />
-                          )}
-                        </Button>
-                      </TableHead>
-                      <TableHead>
-                        <Button
-                          variant="ghost"
-                          onClick={() => handleSort("issued")}
-                          className="h-auto p-0 font-semibold hover:bg-transparent"
-                        >
-                          ICS Proof
-                          {sortField === "issued" &&
-                            (sortOrder === "asc" ? (
-                              <ArrowUp className="ml-2 h-4 w-4" />
-                            ) : (
-                              <ArrowDown className="ml-2 h-4 w-4" />
-                            ))}
-                          {sortField !== "issued" && (
-                            <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />
-                          )}
-                        </Button>
-                      </TableHead>
-                      <TableHead>
-                        <Button
-                          variant="ghost"
-                          onClick={() => handleSort("outdated")}
-                          className="h-auto p-0 font-semibold hover:bg-transparent"
-                        >
-                          Outdated
-                          {sortField === "outdated" &&
-                            (sortOrder === "asc" ? (
-                              <ArrowUp className="ml-2 h-4 w-4" />
-                            ) : (
-                              <ArrowDown className="ml-2 h-4 w-4" />
-                            ))}
-                          {sortField !== "outdated" && (
-                            <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />
-                          )}
-                        </Button>
-                      </TableHead>
-                      <TableHead>
-                        <Button
-                          variant="ghost"
-                          onClick={() => handleSort("createdAt")}
-                          className="h-auto p-0 font-semibold hover:bg-transparent"
-                        >
-                          Submitted
-                          {sortField === "createdAt" &&
-                            (sortOrder === "asc" ? (
-                              <ArrowUp className="ml-2 h-4 w-4" />
-                            ) : (
-                              <ArrowDown className="ml-2 h-4 w-4" />
-                            ))}
-                          {sortField !== "createdAt" && (
-                            <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />
-                          )}
-                        </Button>
-                      </TableHead>
-                      <TableHead>Last Reviewer</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data?.data?.map((form) => (
-                      <TableRow key={form.id}>
-                        <TableCell className="font-medium">
-                          <Link
-                            to={`/forms/${form.id}`}
-                            className="text-primary hover:underline"
-                          >
-                            #{form.id}
-                          </Link>
-                        </TableCell>
-                        <TableCell className="max-w-[150px]">
-                          <AddressDisplay address={form.form.mainAddress} />
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge status={form.status} />
-                        </TableCell>
-                        <TableCell>
-                          {form.issued ? (
-                            <Badge variant="default" className="text-xs">
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              Issued
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary" className="text-xs">
-                              Not Issued
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {form.outdated ? (
-                            <Badge
-                              variant="outline"
-                              className="text-xs border-amber-200 text-amber-700 bg-amber-50"
-                            >
-                              <Archive className="w-3 h-3 mr-1" />
-                              Outdated
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary" className="text-xs">
-                              Current
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {new Date(form.createdAt).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground max-w-[120px]">
-                          <ReviewerDisplay reviewer={form.lastReviewer} />
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="sm" asChild>
-                            <Link
-                              to={`/forms/${form.id}`}
-                              title={
-                                form.issued
-                                  ? "View form with issued ICS Proof"
-                                  : form.outdated
-                                  ? "View outdated form"
-                                  : "Review ICS form"
-                              }
-                            >
-                              {form.issued || form.outdated ? (
-                                <>
-                                  <Eye className="h-4 w-4 mr-1" />
-                                  View
-                                </>
-                              ) : (
-                                <>
-                                  <Edit className="h-4 w-4 mr-1" />
-                                  Review
-                                </>
-                              )}
-                            </Link>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          )}
-          {data?.total ? (
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 border-t">
-              <div className="flex items-center gap-4">
-                <div className="text-sm text-muted-foreground">
-                  Showing{" "}
-                  {Math.min((currentPage - 1) * pageSize + 1, data.total)} to{" "}
-                  {Math.min(currentPage * pageSize, data.total)} of {data.total}{" "}
-                  results
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Show:</span>
-                  <Select
-                    value={pageSize.toString()}
-                    onValueChange={handlePageSizeChange}
-                  >
-                    <SelectTrigger className="w-20 h-8">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="20">20</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                      <SelectItem value="100">100</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {data.total > pageSize && (
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        onClick={() =>
-                          updateCurrentPage(Math.max(1, currentPage - 1))
-                        }
-                        className={
-                          currentPage === 1
-                            ? "pointer-events-none opacity-50"
-                            : "cursor-pointer"
-                        }
-                      />
-                    </PaginationItem>
-
-                    {pageNumbers.map((pageNum, index) => (
-                      <PaginationItem key={index}>
-                        {pageNum === "ellipsis" ? (
-                          <PaginationEllipsis />
-                        ) : (
-                          <PaginationLink
-                            onClick={() => updateCurrentPage(pageNum)}
-                            isActive={pageNum === currentPage}
-                            className="cursor-pointer"
-                          >
-                            {pageNum}
-                          </PaginationLink>
-                        )}
-                      </PaginationItem>
-                    ))}
-
-                    <PaginationItem>
-                      <PaginationNext
-                        onClick={() =>
-                          updateCurrentPage(
-                            Math.min(totalPages, currentPage + 1)
-                          )
-                        }
-                        className={
-                          currentPage === totalPages
-                            ? "pointer-events-none opacity-50"
-                            : "cursor-pointer"
-                        }
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
               )}
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
 
-      {!isLoading && (!data?.data || data.data.length === 0) && (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">No ICS forms found</h3>
-            <p className="text-muted-foreground text-center">
-              {hasActiveFilters(filterValues)
-                ? "Try adjusting your filters to see more results."
-                : "No ICS forms have been submitted yet."}
-            </p>
-          </CardContent>
-        </Card>
-      )}
+              {isError && (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={9}>
+                    <QueryErrorState
+                      title="Couldn't load ICS forms"
+                      onRetry={() => refetch()}
+                      isRetrying={isFetching}
+                      className="py-14"
+                    />
+                  </TableCell>
+                </TableRow>
+              )}
+
+              {isEmpty && (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={9}>
+                    <EmptyState
+                      icon={FileText}
+                      title="No ICS forms found"
+                      description={
+                        hasActiveFilters(filterValues)
+                          ? "Try adjusting your filters to see more results."
+                          : "No ICS forms have been submitted yet."
+                      }
+                      className="py-14"
+                    />
+                  </TableCell>
+                </TableRow>
+              )}
+
+              {!isLoading &&
+                rows.map((form) => {
+                  // Capped total + qualification tone, mirroring the detail
+                  // page's TotalScoreCard (emerald/amber/red accent).
+                  const breakdown = getScoreBreakdown(form.scores);
+                  const scoreTone = breakdown.isQualified
+                    ? "emerald"
+                    : breakdown.isPartiallyQualified
+                    ? "amber"
+                    : "red";
+
+                  return (
+                  <TableRow key={form.id} className="group">
+                    <TableCell className="tabular-nums">
+                      <Link
+                        to={`/forms/${form.id}`}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        #{form.id}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <AddressDisplay address={form.form.mainAddress} />
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={form.status} />
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={cn(
+                          "text-sm font-semibold tabular-nums",
+                          toneIcon[scoreTone]
+                        )}
+                        title={getScoreStatus(breakdown).message}
+                      >
+                        {breakdown.totalScore}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {form.issued ? (
+                        <StatusPill tone="emerald">Issued</StatusPill>
+                      ) : (
+                        <StatusPill tone="neutral">Not issued</StatusPill>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {form.outdated ? (
+                        <StatusPill tone="amber">Outdated</StatusPill>
+                      ) : (
+                        <StatusPill tone="neutral">Current</StatusPill>
+                      )}
+                    </TableCell>
+                    <TableCell className="tabular-nums text-sm text-muted-foreground">
+                      {new Date(form.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="max-w-[140px] text-sm text-muted-foreground">
+                      <ReviewerDisplay reviewer={form.lastReviewer} />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        asChild
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <Link
+                          to={`/forms/${form.id}`}
+                          title={
+                            form.issued
+                              ? "View form with issued ICS Proof"
+                              : form.outdated
+                              ? "View outdated form"
+                              : "Review ICS form"
+                          }
+                        >
+                          {form.issued || form.outdated ? (
+                            <>
+                              <Eye className="size-3.5" />
+                              View
+                            </>
+                          ) : (
+                            <>
+                              <Edit className="size-3.5" />
+                              Review
+                            </>
+                          )}
+                        </Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                  );
+                })}
+            </TableBody>
+          </Table>
+
+        {/* Footer: range summary, page size, pagination */}
+        <DataPagination
+          currentPage={currentPage}
+          pageSize={pageSize}
+          total={data?.total ?? 0}
+          onPageChange={updateCurrentPage}
+          onPageSizeChange={handlePageSizeChange}
+        />
+      </Panel>
     </div>
   );
 };
