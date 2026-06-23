@@ -2,19 +2,21 @@ import { useList } from "@refinedev/core";
 import { Link } from "react-router";
 import { Archive, CheckCircle, Edit, Eye } from "lucide-react";
 import type { FormStatus } from "../types/api";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { AddressDisplay, ReviewerDisplay } from "@/components/ui/address-display";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  StatusBadge,
+  AddressDisplay,
+  ReviewerDisplay,
+  ColumnLabel,
+  Panel,
+  SoftBadge,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
+  TableSkeleton,
+} from "@/components/ui";
 
 interface FormItem {
   id: number;
@@ -72,153 +74,142 @@ export const OtherFormsFromAddress = ({
     return null;
   }
 
+  const tableMeta =
+    "[&_td]:px-4 [&_td]:py-2.5 [&_th]:h-auto [&_th]:px-4 [&_th]:py-2.5";
+
+  const header = (
+    <div className="flex items-center gap-2 border-b p-4">
+      <h2 className="text-sm font-semibold">Other forms with same main address</h2>
+      {!isLoading && (
+        <span className="rounded-md bg-secondary px-1.5 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">
+          {otherForms.length}
+        </span>
+      )}
+    </div>
+  );
+
+  const columns = (
+    <TableHeader>
+      <TableRow className="hover:bg-transparent">
+        {["ID", "Main Address", "Status", proofLabel, "Outdated", "Submitted", "Last Reviewer"].map(
+          (label) => (
+            <TableHead key={label}>
+              <ColumnLabel>{label}</ColumnLabel>
+            </TableHead>
+          )
+        )}
+        <TableHead className="text-right">
+          <ColumnLabel>Actions</ColumnLabel>
+        </TableHead>
+      </TableRow>
+    </TableHeader>
+  );
+
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">
-            Other Forms from Same Address
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Main Address</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>{proofLabel}</TableHead>
-                    <TableHead>Outdated</TableHead>
-                    <TableHead>Submitted</TableHead>
-                    <TableHead>Last Reviewer</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell><Skeleton className="h-4 w-8" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                      <TableCell><Skeleton className="h-6 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-6 w-16" /></TableCell>
-                      <TableCell><Skeleton className="h-6 w-16" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-8 w-16" /></TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <Panel className="overflow-hidden">
+        {header}
+        <div className="overflow-x-auto">
+          <Table className={tableMeta}>
+            {columns}
+            <TableBody>
+              <TableSkeleton
+                rows={3}
+                columns={[
+                  { width: "h-4 w-8" },
+                  { width: "h-5 w-32" },
+                  { width: "h-5 w-20" },
+                  { width: "h-5 w-16" },
+                  { width: "h-5 w-16" },
+                  { width: "h-4 w-24" },
+                  { width: "h-4 w-20" },
+                  { width: "h-7 w-16", align: "right" },
+                ]}
+              />
+            </TableBody>
+          </Table>
+        </div>
+      </Panel>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">
-          Other Forms with same Main Address
-          <span className="ml-2 text-sm font-normal text-muted-foreground">
-            ({otherForms.length} {otherForms.length === 1 ? "form" : "forms"})
-          </span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="w-full overflow-x-auto">
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Main Address</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>{proofLabel}</TableHead>
-                  <TableHead>Outdated</TableHead>
-                  <TableHead>Submitted</TableHead>
-                  <TableHead>Last Reviewer</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {otherForms.map((form) => (
-                  <TableRow key={form.id}>
-                    <TableCell className="font-medium">#{form.id}</TableCell>
-                    <TableCell className="max-w-[150px]">
-                      <AddressDisplay address={form.form.mainAddress} />
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={form.status} />
-                    </TableCell>
-                    <TableCell>
-                      {form.issued ? (
-                        <Badge variant="default" className="text-xs">
-                          <CheckCircle className="w-3 h-3 mr-1" />
-                          Issued
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="text-xs">
-                          Not Issued
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {form.outdated ? (
-                        <Badge
-                          variant="outline"
-                          className="text-xs border-amber-200 text-amber-700 bg-amber-50"
-                        >
-                          <Archive className="w-3 h-3 mr-1" />
-                          Outdated
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="text-xs">
-                          Current
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {new Date(form.createdAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground max-w-[120px]">
-                      <ReviewerDisplay reviewer={form.lastReviewer} />
-                    </TableCell>
-                    <TableCell>
-                      <Link
-                        to={`${basePath}/${form.id}`}
-                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 px-3"
-                        title={
-                          form.issued
-                            ? `View form with issued ${proofLabel}`
-                            : form.outdated
-                            ? "View outdated form"
-                            : "Review form"
-                        }
-                      >
-                        {form.issued || form.outdated ? (
-                          <>
-                            <Eye className="h-4 w-4 mr-1" />
-                            View
-                          </>
-                        ) : (
-                          <>
-                            <Edit className="h-4 w-4 mr-1" />
-                            Review
-                          </>
-                        )}
-                      </Link>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <Panel className="overflow-hidden">
+      {header}
+      <div className="overflow-x-auto">
+        <Table className={tableMeta}>
+          {columns}
+          <TableBody>
+            {otherForms.map((form) => (
+              <TableRow key={form.id} className="group">
+                <TableCell className="font-medium tabular-nums">
+                  <Link
+                    to={`${basePath}/${form.id}`}
+                    className="text-primary hover:underline"
+                  >
+                    #{form.id}
+                  </Link>
+                </TableCell>
+                <TableCell className="max-w-[150px]">
+                  <AddressDisplay address={form.form.mainAddress} />
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={form.status} />
+                </TableCell>
+                <TableCell>
+                  {form.issued ? (
+                    <SoftBadge tone="emerald" size="sm" icon={CheckCircle}>
+                      Issued
+                    </SoftBadge>
+                  ) : (
+                    <SoftBadge tone="neutral" size="sm">Not Issued</SoftBadge>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {form.outdated ? (
+                    <SoftBadge tone="amber" size="sm" icon={Archive}>
+                      Outdated
+                    </SoftBadge>
+                  ) : (
+                    <SoftBadge tone="neutral" size="sm">Current</SoftBadge>
+                  )}
+                </TableCell>
+                <TableCell className="tabular-nums text-sm text-muted-foreground">
+                  {new Date(form.createdAt).toLocaleDateString()}
+                </TableCell>
+                <TableCell className="max-w-[120px] text-muted-foreground">
+                  <ReviewerDisplay reviewer={form.lastReviewer} />
+                </TableCell>
+                <TableCell className="text-right">
+                  <Link
+                    to={`${basePath}/${form.id}`}
+                    className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    title={
+                      form.issued
+                        ? `View form with issued ${proofLabel}`
+                        : form.outdated
+                        ? "View outdated form"
+                        : "Review form"
+                    }
+                  >
+                    {form.issued || form.outdated ? (
+                      <>
+                        <Eye className="size-3.5" />
+                        View
+                      </>
+                    ) : (
+                      <>
+                        <Edit className="size-3.5" />
+                        Review
+                      </>
+                    )}
+                  </Link>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </Panel>
   );
 };

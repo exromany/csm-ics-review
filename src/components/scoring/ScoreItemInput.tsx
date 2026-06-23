@@ -1,12 +1,33 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Info, AlertCircle, AlertTriangle } from 'lucide-react';
 import type { ScoreItem } from '../../config/scoringConfig';
 import type { IcsScoresDto } from '../../types/api';
 import { validateScoreValue, getCsmTestnetWarning, getCsmTestnetValidationError } from '../../utils/scoring';
+import { cn } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  toneIcon,
+  toneBorder,
+  toneTint,
+} from '@/components/ui';
 
 interface ScoreItemInputProps {
   item: ScoreItem;
   value: number;
-  onChange: (value: number) => void;
+  /**
+   * Stable handler shared across every row. Receiving the score field id here
+   * (instead of an inline `(value) => onScoreChange(item.id, value)` closure)
+   * keeps this prop referentially stable, so React.memo can skip re-renders of
+   * untouched rows when the parent re-renders for unrelated reasons.
+   */
+  onScoreChange: (itemId: keyof IcsScoresDto, value: number) => void;
   disabled?: boolean;
   allScores?: IcsScoresDto;
 }
@@ -14,40 +35,20 @@ interface ScoreItemInputProps {
 const ScoreItemInput: React.FC<ScoreItemInputProps> = ({
   item,
   value,
-  onChange,
+  onScoreChange,
   disabled = false,
   allScores,
 }) => {
-  const [showTooltip, setShowTooltip] = useState(false);
   const [inputError, setInputError] = useState(false);
   const [softWarning, setSoftWarning] = useState<string | null>(null);
   const [warningSeverity, setWarningSeverity] = useState<'error' | 'warning'>('warning');
-  const [tooltipPosition, setTooltipPosition] = useState<'left' | 'right'>('left');
-  const tooltipRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
 
-  // Calculate tooltip position to avoid clipping
-  useEffect(() => {
-    if (showTooltip && buttonRef.current) {
-      const buttonRect = buttonRef.current.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const tooltipWidth = 288; // w-72 = 288px
-      
-      // Check if tooltip would overflow on the right side
-      if (buttonRect.left + tooltipWidth > viewportWidth - 20) {
-        setTooltipPosition('right');
-      } else {
-        setTooltipPosition('left');
-      }
-    }
-  }, [showTooltip]);
-  
   // Update validation state when scores change
   useEffect(() => {
     // Check hard validation first
     const isValidValue = validateScoreValue(item.id, value, item);
     setInputError(!isValidValue);
-    
+
     // Handle CSM testnet special validation
     if (item.id === 'csmTestnet' && allScores) {
       const circlesScore = allScores.circles || 0;
@@ -60,152 +61,119 @@ const ScoreItemInput: React.FC<ScoreItemInputProps> = ({
     }
   }, [item, allScores, value]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newValue = parseInt(e.target.value);
-
-    // With dropdown, all values should be valid by design
-    onChange(newValue);
+  const handleValueChange = (next: string) => {
+    onScoreChange(item.id, parseInt(next));
     setInputError(false);
-
-    // Handle CSM testnet special validation
-    if (item.id === 'csmTestnet' && allScores) {
-      const circlesScore = allScores.circles || 0;
-      const validation = getCsmTestnetWarning(newValue, circlesScore);
-      setSoftWarning(validation.isValid ? null : validation.warning || null);
-      setWarningSeverity(validation.severity);
-    } else {
-      setSoftWarning(null);
-      setWarningSeverity('warning');
-    }
   };
 
-  const getPointsDisplay = () => {
-    if (typeof item.points === 'string') {
-      return `${item.points} pts`;
-    }
-    return `${item.points} pts`;
-  };
+  const getPointsDisplay = () => `${item.points} pts`;
+
+  const isScored = value > 0;
+  const isError = inputError || (softWarning !== null && warningSeverity === 'error');
+  const isWarning = !isError && softWarning !== null;
 
   return (
     <div className="relative">
-      <div className={`flex items-center space-x-3 p-2 rounded-md transition-colors border ${
-        inputError 
-          ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20' 
-          : softWarning 
-          ? warningSeverity === 'error' 
-            ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20'
-            : 'border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20'
-          : 'border-border hover:bg-muted/50'
-      }`}>
+      <div
+        className={cn(
+          'flex items-center gap-3 rounded-md border px-2.5 py-2 transition-colors',
+          isError
+            ? cn(toneBorder.red, toneTint.red)
+            : isWarning
+              ? cn(toneBorder.amber, toneTint.amber)
+              : isScored
+                ? cn(toneBorder.emerald, toneTint.emerald)
+                : 'border-border hover:bg-muted/50'
+        )}
+      >
         <div className="flex-shrink-0">
           <img
             src={item.icon}
             alt={item.name}
-            className="w-6 h-6 rounded-full border border-border bg-white dark:bg-gray-200 p-0.5"
+            className="size-6 rounded-full border border-border bg-background p-0.5"
           />
         </div>
 
-        <div className="flex-grow min-w-0">
+        <div className="min-w-0 flex-grow">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-1 flex-grow min-w-0">
-              <h4 className="text-sm font-medium text-foreground truncate">{item.name}</h4>
-              <button
-                ref={buttonRef}
-                type="button"
-                className="text-muted-foreground hover:text-foreground flex-shrink-0"
-                onMouseEnter={() => setShowTooltip(true)}
-                onMouseLeave={() => setShowTooltip(false)}
-              >
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                </svg>
-              </button>
+            <div className="flex min-w-0 flex-grow items-center gap-1">
+              <h4 className="truncate text-sm font-medium text-foreground">{item.name}</h4>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={`About ${item.name}`}
+                    className="flex-shrink-0 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:text-foreground"
+                  >
+                    <Info className="size-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p className="font-medium">{getPointsDisplay()}</p>
+                  <p className="mt-1 opacity-90">{item.description}</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
 
-            <div className="flex items-center space-x-2 flex-shrink-0">
-              <span className="text-xs text-muted-foreground">{getPointsDisplay()}</span>
-              <select
-                value={value}
-                onChange={handleChange}
+            <div className="flex flex-shrink-0 items-center gap-2">
+              <span className="text-xs tabular-nums text-muted-foreground">{getPointsDisplay()}</span>
+              <Select
+                value={String(value)}
+                onValueChange={handleValueChange}
                 disabled={disabled}
-                className={`
-                  w-16 px-2 py-1 text-sm text-center border rounded
-                  ${inputError
-                    ? 'border-red-300 dark:border-red-700 focus:ring-red-500 focus:border-red-500 dark:focus:border-red-400'
-                    : 'border-input focus:ring-ring focus:border-ring'
-                  }
-                  ${disabled
-                    ? 'bg-muted cursor-not-allowed'
-                    : 'bg-background'
-                  }
-                  text-foreground
-                  focus:outline-none focus:ring-1
-                `}
               >
-                {item.allowedValues.map((allowedValue) => (
-                  <option key={allowedValue} value={allowedValue}>
-                    {allowedValue}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger
+                  aria-label={`${item.name} score`}
+                  className={cn(
+                    "h-7 w-[4.5rem] justify-center px-2 text-center tabular-nums",
+                    inputError
+                      ? "border-destructive focus:ring-destructive"
+                      : isScored
+                        ? toneBorder.emerald
+                        : undefined
+                  )}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {item.allowedValues.map((allowedValue) => (
+                    <SelectItem key={allowedValue} value={String(allowedValue)}>
+                      {allowedValue}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           {inputError && (
-            <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+            <p className={cn('mt-1 flex items-start gap-1 text-xs', toneIcon.red)}>
+              <AlertCircle className="mt-0.5 size-3 flex-shrink-0" />
               {item.id === 'csmTestnet'
                 ? getCsmTestnetValidationError(value) || `Value must be one of: ${item.allowedValues.join(', ')}`
-                : `Value must be one of: ${item.allowedValues.join(', ')}`
-              }
+                : `Value must be one of: ${item.allowedValues.join(', ')}`}
             </p>
           )}
-          
+
           {!inputError && softWarning && (
-            <p className={`text-xs mt-1 flex items-start ${
-              warningSeverity === 'error' ? 'text-red-600 dark:text-red-400' : 'text-yellow-600 dark:text-yellow-400'
-            }`}>
-              <svg className="w-3 h-3 mr-1 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                {warningSeverity === 'error' ? (
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                ) : (
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                )}
-              </svg>
+            <p
+              className={cn(
+                'mt-1 flex items-start gap-1 text-xs',
+                warningSeverity === 'error' ? toneIcon.red : toneIcon.amber
+              )}
+            >
+              {warningSeverity === 'error' ? (
+                <AlertCircle className="mt-0.5 size-3 flex-shrink-0" />
+              ) : (
+                <AlertTriangle className="mt-0.5 size-3 flex-shrink-0" />
+              )}
               {softWarning}
             </p>
           )}
         </div>
       </div>
-
-      {showTooltip && (
-        <div 
-          ref={tooltipRef}
-          className={`
-            absolute z-50 w-72 max-w-xs sm:max-w-sm p-3 mt-1 text-xs text-foreground 
-            bg-popover border border-border rounded-lg shadow-xl top-full
-            transform transition-opacity duration-200
-            ${tooltipPosition === 'left' ? 'left-0' : 'right-0'}
-          `}
-          style={{
-            // Ensure tooltip doesn't get clipped by parent containers
-            zIndex: 9999
-          }}
-        >
-          {/* Arrow pointer */}
-          <div 
-            className={`
-              absolute -top-1 w-2 h-2 bg-popover border-l border-t border-border 
-              transform rotate-45 
-              ${tooltipPosition === 'left' ? 'left-4' : 'right-4'}
-            `}
-          />
-          
-          <div className="font-semibold mb-2 text-indigo-600 dark:text-indigo-400">Points: {getPointsDisplay()}</div>
-          <div className="leading-relaxed">{item.description}</div>
-        </div>
-      )}
     </div>
   );
 };
 
-export default ScoreItemInput;
+export default React.memo(ScoreItemInput);

@@ -1,132 +1,161 @@
 import React from 'react';
 import type { IcsScoresDto } from '../../types/api';
-import { getScoreBreakdown, getScoreStatus } from '../../utils/scoring';
+import { getScoreBreakdown, getScoreStatus, getScorePercentage } from '../../utils/scoring';
 import { TOTAL_SCORE_REQUIRED } from '../../config/scoringConfig';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
+import {
+  Panel,
+  Progress,
+  SoftBadge,
+  type Tone,
+  toneIcon,
+  toneTint,
+  toneIndicator,
+} from '@/components/ui';
+import { CheckCircle, AlertTriangle, XCircle, type LucideIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface TotalScoreCardProps {
   scores: IcsScoresDto;
 }
 
+type QualState = 'qualified' | 'partial' | 'unqualified';
+
+/**
+ * Per-qualification visuals. A single semantic `tone` per state sources every
+ * color from the shared tone module — accent text via `toneIcon`, the subtle
+ * surface via `toneTint`, the Progress fill via `toneIndicator`, and the status
+ * callout via `SoftBadge`. No raw palette literals live here.
+ */
+const STATE_META: Record<
+  QualState,
+  {
+    Icon: LucideIcon;
+    tone: Tone;
+    accent: string;
+    tint: string;
+    indicator: string;
+  }
+> = {
+  qualified: {
+    Icon: CheckCircle,
+    tone: 'emerald',
+    accent: toneIcon.emerald,
+    tint: toneTint.emerald,
+    indicator: toneIndicator.emerald,
+  },
+  partial: {
+    Icon: AlertTriangle,
+    tone: 'amber',
+    accent: toneIcon.amber,
+    tint: toneTint.amber,
+    indicator: toneIndicator.amber,
+  },
+  unqualified: {
+    Icon: XCircle,
+    tone: 'red',
+    accent: toneIcon.red,
+    tint: toneTint.red,
+    indicator: toneIndicator.red,
+  },
+};
+
 const TotalScoreCard: React.FC<TotalScoreCardProps> = ({ scores }) => {
   const breakdown = getScoreBreakdown(scores);
   const status = getScoreStatus(breakdown);
 
-  const getStatusIcon = () => {
-    if (breakdown.isQualified) {
-      return <CheckCircle className="w-6 h-6 text-green-500" />;
-    } else if (breakdown.isPartiallyQualified) {
-      return <AlertTriangle className="w-6 h-6 text-amber-500" />;
-    }
-    return <XCircle className="w-6 h-6 text-red-500" />;
-  };
+  const state: QualState = breakdown.isQualified
+    ? 'qualified'
+    : breakdown.isPartiallyQualified
+      ? 'partial'
+      : 'unqualified';
+  const meta = STATE_META[state];
+  const { Icon } = meta;
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className={`${
-        breakdown.isQualified 
-          ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800' 
-          : breakdown.isPartiallyQualified
-          ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800'
-          : 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800'
-      }`}>
-        <div className="flex items-center justify-between mb-3">
-          <CardTitle className="text-xl">Total Score</CardTitle>
-          {getStatusIcon()}
+    <Panel className="overflow-hidden">
+      <div className={cn('border-b p-6', meta.tint)}>
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Total Score
+          </span>
+          <Icon className={cn('size-5', meta.accent)} />
         </div>
 
-        <div className="text-center mb-4">
-          <div className={`text-5xl font-bold mb-1 ${
-            breakdown.isQualified 
-              ? 'text-green-600 dark:text-green-400' 
-              : breakdown.isPartiallyQualified
-              ? 'text-amber-600 dark:text-amber-400'
-              : 'text-red-600 dark:text-red-400'
-          }`}>
+        <div className="mt-4 text-center">
+          <div className={cn('text-5xl font-semibold tabular-nums', meta.accent)}>
             {breakdown.totalScore}
           </div>
-          <div className="text-sm text-muted-foreground">
+          <div className="mt-1 text-sm text-muted-foreground">
             out of {TOTAL_SCORE_REQUIRED} required points
           </div>
         </div>
 
-        <div className="mb-4">
+        <div className="mt-4">
           <Progress
-            value={(breakdown.totalScore / 23) * 100}
-            className={`h-3 ${
-              breakdown.isQualified 
-                ? '[&>div]:bg-green-500' 
-                : breakdown.isPartiallyQualified
-                ? '[&>div]:bg-amber-500'
-                : '[&>div]:bg-red-500'
-            }`}
+            value={getScorePercentage(breakdown.totalScore)}
+            className={cn('h-2', meta.indicator)}
           />
         </div>
 
-        <Badge 
-          variant="outline"
-          className={`w-full justify-center py-2 ${
-            breakdown.isQualified 
-              ? 'bg-green-100 dark:bg-green-900/40 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200' 
-              : breakdown.isPartiallyQualified
-              ? 'bg-amber-100 dark:bg-amber-900/40 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200'
-              : 'bg-red-100 dark:bg-red-900/40 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
-          }`}
+        <SoftBadge
+          tone={meta.tone}
+          size="sm"
+          className="mt-4 w-full justify-center px-3 py-2 text-center"
         >
           {status.message}
-        </Badge>
-      </CardHeader>
+        </SoftBadge>
+      </div>
 
-      <CardContent className="bg-muted/50">
-        <h4 className="text-sm font-bold mb-3">Score Breakdown</h4>
-        <div className="space-y-2">
-          {breakdown.groups.map((group) => (
-            <div key={group.groupId} className="flex items-center justify-between py-1">
-              <div className="flex items-center">
-                <span className={`text-sm font-medium ${
-                  group.cappedScore < group.minLimit 
-                    ? 'text-destructive' 
-                    : 'text-foreground'
-                }`}>
-                  {group.groupTitle.replace('Proof-of-', '')}
-                </span>
-                {group.cappedScore < group.minLimit && (
-                  <Badge variant="destructive" className="text-xs ml-2">
-                    min: {group.minLimit}
-                  </Badge>
-                )}
-                {group.rawScore > group.cappedScore && (
-                  <Badge variant="secondary" className="text-xs ml-2">
-                    capped from {group.rawScore}
-                  </Badge>
-                )}
+      <div className="p-5">
+        <h4 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Score Breakdown
+        </h4>
+        <div className="space-y-1.5">
+          {breakdown.groups.map((group) => {
+            const belowMin = group.cappedScore < group.minLimit;
+            return (
+              <div
+                key={group.groupId}
+                className="flex items-center justify-between gap-2 py-0.5"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <span
+                    className={cn(
+                      'truncate text-sm',
+                      belowMin ? 'font-medium text-destructive' : 'text-foreground'
+                    )}
+                  >
+                    {group.groupTitle.replace('Proof-of-', '')}
+                  </span>
+                  {belowMin && (
+                    <span className="flex-shrink-0 rounded-md bg-destructive/10 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-destructive">
+                      min {group.minLimit}
+                    </span>
+                  )}
+                  {group.rawScore > group.cappedScore && (
+                    <span className="flex-shrink-0 rounded-md bg-secondary px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
+                      capped from {group.rawScore}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-shrink-0 items-baseline gap-1 tabular-nums">
+                  <span className="text-sm font-semibold">{group.cappedScore}</span>
+                  <span className="text-xs text-muted-foreground">/ {group.maxLimit}</span>
+                </div>
               </div>
-              <div className="flex items-center space-x-1">
-                <span className="text-sm font-bold">
-                  {group.cappedScore}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  / {group.maxLimit}
-                </span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        <div className="mt-3 pt-3 border-t">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-bold">Total Score</span>
-            <span className="text-lg font-bold text-primary">
-              {breakdown.totalScore} pts
-            </span>
-          </div>
+        <div className="mt-3 flex items-center justify-between border-t pt-3">
+          <span className="text-sm font-semibold">Total Score</span>
+          <span className="text-base font-semibold tabular-nums text-primary">
+            {breakdown.totalScore} pts
+          </span>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </Panel>
   );
 };
 
-export default TotalScoreCard;
+export default React.memo(TotalScoreCard);

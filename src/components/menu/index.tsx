@@ -1,18 +1,44 @@
-import { useLogout, useGetIdentity, useNavigation } from "@refinedev/core";
+import { useLogout, useGetIdentity, useNavigation, useResourceParams } from "@refinedev/core";
 import { useDisconnect } from "wagmi";
-import { LogOut, Users, FileText, Network, Settings } from "lucide-react";
+import { LogOut, Users, FileText, Network, Settings, type LucideIcon } from "lucide-react";
 import type { AdminIdentity } from "../../types/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { appConfig } from "@/config/env";
+import { cn } from "@/lib/utils";
+
+type NavItem = {
+  name: string;
+  label: string;
+  icon: LucideIcon;
+  supervisorOnly?: boolean;
+};
+
+const NAV_ITEMS: NavItem[] = [
+  { name: "ics-forms", label: "ICS Forms", icon: FileText },
+  { name: "dvt-forms", label: "DVT Forms", icon: Network },
+  { name: "admin-users", label: "Users", icon: Users, supervisorOnly: true },
+  { name: "settings", label: "Settings", icon: Settings },
+];
 
 export const Menu = () => {
   const { mutate: logout } = useLogout();
   const { data: identity } = useGetIdentity<AdminIdentity>();
   const { disconnect } = useDisconnect();
   const { list } = useNavigation();
+  const { identifier: activeIdentifier } = useResourceParams();
+
+  // Shared styling for nav affordances — the relative underline indicator that
+  // animates in for the active item.
+  const navItemClass = (active: boolean) =>
+    cn(
+      "relative after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:rounded-full after:bg-primary after:transition-opacity",
+      active
+        ? "text-foreground after:opacity-100"
+        : "text-muted-foreground hover:text-foreground after:opacity-0"
+    );
 
   const handleLogout = () => {
     disconnect();
@@ -30,47 +56,28 @@ export const Menu = () => {
             
             {/* Navigation Menu */}
             <nav className="flex items-center space-x-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => list("ics-forms")}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                ICS Forms
-              </Button>
+              {NAV_ITEMS.map((item) => {
+                if (item.supervisorOnly && identity?.role !== "SUPERVISOR") {
+                  return null;
+                }
 
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => list("dvt-forms")}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Network className="w-4 h-4 mr-2" />
-                DVT Forms
-              </Button>
+                const isActive = activeIdentifier === item.name;
+                const Icon = item.icon;
 
-              {identity?.role === 'SUPERVISOR' && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => list("admin-users")}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  <Users className="w-4 h-4 mr-2" />
-                  Users
-                </Button>
-              )}
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => list("settings")}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Settings className="w-4 h-4 mr-2" />
-                Settings
-              </Button>
+                return (
+                  <Button
+                    key={item.name}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => list(item.name)}
+                    aria-current={isActive ? "page" : undefined}
+                    className={navItemClass(isActive)}
+                  >
+                    <Icon className="w-4 h-4 mr-2" />
+                    {item.label}
+                  </Button>
+                );
+              })}
             </nav>
           </div>
           

@@ -12,62 +12,54 @@ import {
   MessageSquare,
   Send,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import type { LucideIcon } from "lucide-react";
+import { SoftBadge, type Tone } from "@/components/ui";
 import type {
   DvtAddressRole,
   DvtFormMatch,
   DvtMatchKind,
 } from "../hooks/useDvtFormsByIdentifiers";
 
-const baseClass =
-  "inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium";
-
 const statusVariant = (form: DvtFormMatch) => {
   if (form.status === "APPROVED" && form.issued) {
     return {
       Icon: CheckCircle,
       label: "Approved · Issued",
-      className:
-        "border-green-300 text-green-700 bg-green-50 dark:border-green-700 dark:text-green-300 dark:bg-green-900/30",
+      tone: "emerald" as Tone,
     };
   }
   if (form.status === "APPROVED") {
     return {
       Icon: CircleCheck,
       label: "Approved",
-      className:
-        "border-green-300 text-green-700 bg-green-50 dark:border-green-700 dark:text-green-300 dark:bg-green-900/30",
+      tone: "emerald" as Tone,
     };
   }
   if (form.status === "REVIEW") {
     return {
       Icon: Clock,
       label: "Under Review",
-      className:
-        "border-amber-300 text-amber-700 bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:bg-amber-900/30",
+      tone: "amber" as Tone,
     };
   }
   return {
     Icon: CircleX,
     label: "Rejected",
-    className:
-      "border-red-300 text-red-700 bg-red-50 dark:border-red-700 dark:text-red-300 dark:bg-red-900/30",
+    tone: "red" as Tone,
   };
 };
 
 interface MatchKindMeta {
-  Icon: typeof User;
+  Icon: LucideIcon;
   label: string;
   title: string;
-  className: string;
+  tone: Tone;
 }
 
-const defaultMatchClass =
-  "border-amber-300 text-amber-700 bg-amber-100/60 dark:border-amber-700 dark:text-amber-300 dark:bg-amber-900/40";
+const defaultMatchTone: Tone = "amber";
 
 // Stronger signal: the queried address IS the linked form's primary identity.
-const mainRoleMatchClass =
-  "border-red-300 text-red-700 bg-red-100/70 dark:border-red-700 dark:text-red-300 dark:bg-red-900/40";
+const mainRoleMatchTone: Tone = "red";
 
 const staticMatchKindMeta: Record<
   Exclude<DvtMatchKind, "address">,
@@ -77,13 +69,13 @@ const staticMatchKindMeta: Record<
     Icon: MessageSquare,
     label: "Discord",
     title: "Same Discord link or handle",
-    className: defaultMatchClass,
+    tone: defaultMatchTone,
   },
   telegramUsername: {
     Icon: Send,
     label: "Telegram",
     title: "Same Telegram username",
-    className: defaultMatchClass,
+    tone: defaultMatchTone,
   },
 };
 
@@ -93,7 +85,7 @@ const addressMatchMeta = (role?: DvtAddressRole): MatchKindMeta => {
       Icon: User,
       label: "Main Address",
       title: "Address matches the linked form's main address",
-      className: mainRoleMatchClass,
+      tone: mainRoleMatchTone,
     };
   }
   if (role === "member") {
@@ -101,14 +93,14 @@ const addressMatchMeta = (role?: DvtAddressRole): MatchKindMeta => {
       Icon: Users,
       label: "Member Address",
       title: "Address appears as a cluster member of the linked form",
-      className: defaultMatchClass,
+      tone: defaultMatchTone,
     };
   }
   return {
     Icon: User,
     label: "Address",
     title: "Same cluster member address",
-    className: defaultMatchClass,
+    tone: defaultMatchTone,
   };
 };
 
@@ -129,55 +121,50 @@ export const DvtLinkedFormRowContent = ({
   matchedOn,
   basePath = "/dvt-forms",
 }: DvtLinkedFormRowContentProps) => {
-  const { Icon, label, className } = statusVariant(form);
+  const { Icon, label, tone } = statusVariant(form);
   return (
-    <div className="flex items-center gap-2 flex-wrap text-xs">
+    <div className="flex flex-wrap items-center gap-2 text-xs">
       <Link
         to={`${basePath}/${form.id}`}
-        className="font-medium hover:underline inline-flex items-center gap-1 text-foreground"
+        className="inline-flex items-center gap-1 font-medium text-foreground hover:underline"
         title={`Open DVT form #${form.id}`}
       >
         DVT Form #{form.id}
-        <ExternalLink className="w-3 h-3" />
+        <ExternalLink className="size-3" />
       </Link>
-      <Badge variant="outline" className={`${baseClass} ${className}`}>
-        <Icon className="w-3 h-3" />
+      <SoftBadge tone={tone} size="sm" icon={Icon}>
         {label}
-      </Badge>
+      </SoftBadge>
       {form.outdated && (
-        <Badge
-          variant="outline"
-          className={`${baseClass} border-slate-300 text-slate-600 bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:bg-slate-900/30`}
-        >
-          <Archive className="w-3 h-3" />
+        <SoftBadge tone="neutral" size="sm" icon={Archive}>
           Outdated
-        </Badge>
+        </SoftBadge>
       )}
       {matchedOn && matchedOn.length > 0 && (
         <span className="inline-flex items-center gap-1">
           <span className="text-muted-foreground">matched on</span>
           {matchedOn.map((kind) => {
             const meta = metaFor(kind, form.addressRole);
-            const MetaIcon = meta.Icon;
             return (
-              <Badge
+              <SoftBadge
                 key={kind}
-                variant="outline"
-                className={`${baseClass} ${meta.className}`}
+                tone={meta.tone}
+                size="sm"
+                icon={meta.Icon}
+                className="[&>svg]:size-3"
                 title={meta.title}
               >
-                <MetaIcon className="w-3 h-3" />
                 {meta.label}
-              </Badge>
+              </SoftBadge>
             );
           })}
         </span>
       )}
       <Link
         to={`${basePath}/${form.id}`}
-        className="ml-auto inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+        className="ml-auto inline-flex items-center gap-1 rounded-md border bg-card px-2 py-1 font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
       >
-        <Eye className="w-3 h-3" />
+        <Eye className="size-3" />
         View
       </Link>
     </div>
