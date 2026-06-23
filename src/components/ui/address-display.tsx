@@ -17,11 +17,11 @@ export const AddressDisplay = ({
   className = "max-w-[150px]",
 }: AddressDisplayProps) => {
   return (
-    <div className={`flex items-center space-x-1 ${className}`}>
+    <div className={`flex items-center gap-1.5 ${className}`}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <code className="text-sm bg-muted px-2 py-1 rounded block truncate cursor-help">
-            {address.slice(0, 8)}...{address.slice(-6)}
+          <code className="block truncate rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground cursor-help">
+            {address.slice(0, 8)}…{address.slice(-6)}
           </code>
         </TooltipTrigger>
         <TooltipContent>
@@ -33,10 +33,10 @@ export const AddressDisplay = ({
           href={`https://etherscan.io/address/${address}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center w-6 h-6 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:hover:bg-blue-900/70 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 rounded transition-colors duration-200 shrink-0"
+          className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           title="View on Etherscan"
         >
-          <ExternalLink className="w-3 h-3" />
+          <ExternalLink className="size-3" />
         </a>
       )}
     </div>
