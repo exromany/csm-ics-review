@@ -2,20 +2,11 @@ import { useCallback } from "react";
 import { useLocalStorage } from "./useLocalStorage";
 import type { FilterValues } from "./useTableFilters";
 
-type SortField =
-  | "id"
-  | "status"
-  | "createdAt"
-  | "updatedAt"
-  | "mainAddress"
-  | "issued"
-  | "outdated";
+export type SortOrder = "asc" | "desc";
 
-type SortOrder = "asc" | "desc";
-
-interface TableState {
+export interface TableState<TSort extends string = string> {
   filterValues: FilterValues;
-  sortField: SortField;
+  sortField: TSort;
   sortOrder: SortOrder;
   currentPage: number;
   pageSize: number;
@@ -36,9 +27,12 @@ const DEFAULT_TABLE_STATE: TableState = {
   pageSize: 20,
 };
 
-export function usePersistentTableState(storageKey = "csm-ics-table-state") {
+export function usePersistentTableState<TSort extends string = string>(
+  storageKey = "csm-ics-table-state",
+  defaultState: TableState<TSort> = DEFAULT_TABLE_STATE as TableState<TSort>
+) {
   const [storedState, setStoredState, clearStoredState] =
-    useLocalStorage<TableState>(storageKey, DEFAULT_TABLE_STATE);
+    useLocalStorage<TableState<TSort>>(storageKey, defaultState);
 
   const updateFilterValues = useCallback(
     (filterValues: FilterValues | ((prev: FilterValues) => FilterValues)) => {
@@ -55,7 +49,7 @@ export function usePersistentTableState(storageKey = "csm-ics-table-state") {
   );
 
   const updateSortField = useCallback(
-    (sortField: SortField) => {
+    (sortField: TSort) => {
       setStoredState((prev) => ({
         ...prev,
         sortField,
@@ -77,7 +71,7 @@ export function usePersistentTableState(storageKey = "csm-ics-table-state") {
   );
 
   const updateSorting = useCallback(
-    (sortField: SortField, sortOrder: SortOrder) => {
+    (sortField: TSort, sortOrder: SortOrder) => {
       setStoredState((prev) => ({
         ...prev,
         sortField,
@@ -118,14 +112,14 @@ export function usePersistentTableState(storageKey = "csm-ics-table-state") {
       (value) => value !== undefined && value !== null && value !== ""
     );
     const hasSorting =
-      storedState.sortField !== DEFAULT_TABLE_STATE.sortField ||
-      storedState.sortOrder !== DEFAULT_TABLE_STATE.sortOrder;
+      storedState.sortField !== defaultState.sortField ||
+      storedState.sortOrder !== defaultState.sortOrder;
     const hasPagination =
-      storedState.currentPage !== DEFAULT_TABLE_STATE.currentPage ||
-      storedState.pageSize !== DEFAULT_TABLE_STATE.pageSize;
+      storedState.currentPage !== defaultState.currentPage ||
+      storedState.pageSize !== defaultState.pageSize;
 
     return hasFilters || hasSorting || hasPagination;
-  }, [storedState]);
+  }, [storedState, defaultState]);
 
   return {
     filterValues: storedState.filterValues,

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { LidoSDKCore } from "@lidofinance/lido-ethereum-sdk";
-import { IcsGateSDK, LidoSDKCsm } from "@lidofinance/lido-csm-sdk";
+import { LidoSDKCsm } from "@lidofinance/lido-csm-sdk";
 import {
   useSettings,
   type SupportedChainId,
