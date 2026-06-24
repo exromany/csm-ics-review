@@ -1,5 +1,10 @@
 // API Types based on OpenAPI schema from http://localhost:3003/admin/api-json
 
+export interface AdminAuthNonceDto {
+  /** server-issued SIWE nonce to embed in the message */
+  nonce: string;
+}
+
 export interface AdminAuthPersonalSignDto {
   message: string;
   signature: string;

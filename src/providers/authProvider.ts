@@ -1,7 +1,11 @@
 import type { AuthProvider } from "@refinedev/core";
 import { SiweMessage } from "siwe";
 import { getAccount, signMessage } from "@wagmi/core";
-import type { AdminAuthSignInDto, AdminAuthPayloadDto } from "../types/api";
+import type {
+  AdminAuthNonceDto,
+  AdminAuthSignInDto,
+  AdminAuthPayloadDto,
+} from "../types/api";
 import { config as wagmiConfig } from "./wagmiConfig";
 import { appConfig } from "../config/env";
 
@@ -24,6 +28,28 @@ export const authProvider: AuthProvider = {
         };
       }
 
+      // Fetch a server-issued nonce to embed in the SIWE message (prevents replay)
+      const nonceResponse = await fetch(`${API_BASE_URL}/admin/auth/nonce`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      const nonceData: Partial<AdminAuthNonceDto> = await nonceResponse
+        .json()
+        .catch(() => ({}));
+
+      if (!nonceResponse.ok || !nonceData.nonce) {
+        return {
+          success: false,
+          error: {
+            name: "AuthenticationError",
+            message: "Failed to obtain sign-in nonce. Please try again.",
+          },
+        };
+      }
+
       // Create SIWE message
       const domain = appConfig.siweDomain || window.location.host;
       const origin = window.location.origin;
@@ -36,6 +62,7 @@ export const authProvider: AuthProvider = {
         uri: origin,
         version: "1",
         chainId: appConfig.chainId,
+        nonce: nonceData.nonce,
       });
 
       const messageToSign = message.prepareMessage();
