@@ -1,17 +1,14 @@
 import type { AuthProvider } from "@refinedev/core";
 import { SiweMessage } from "siwe";
 import { getAccount, signMessage } from "@wagmi/core";
-import type {
-  AdminAuthNonceDto,
-  AdminAuthSignInDto,
-  AdminAuthPayloadDto,
-} from "../types/api";
+import { adminAuthGetNonce, adminAuthSignIn, adminAuthVerify } from "@/client/sdk.gen";
 import { config as wagmiConfig } from "./wagmiConfig";
-import { appConfig } from "../config/env";
+import { appConfig } from "@/config/env";
+import { TOKEN_KEY, ADMIN_DATA_KEY } from "./authTokens";
+// Configure the shared hey-api client (baseUrl + bearer auth) before any call.
+import "./apiClient";
 
-export const TOKEN_KEY = "admin-jwt-token";
-export const ADMIN_DATA_KEY = "admin-data";
-export const API_BASE_URL = appConfig.apiBaseUrl;
+export { TOKEN_KEY, ADMIN_DATA_KEY };
 
 export const authProvider: AuthProvider = {
   login: async () => {
@@ -29,18 +26,10 @@ export const authProvider: AuthProvider = {
       }
 
       // Fetch a server-issued nonce to embed in the SIWE message (prevents replay)
-      const nonceResponse = await fetch(`${API_BASE_URL}/admin/auth/nonce`, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-        },
-      });
+      const { data: nonceData, response: nonceResponse } =
+        await adminAuthGetNonce();
 
-      const nonceData: Partial<AdminAuthNonceDto> = await nonceResponse
-        .json()
-        .catch(() => ({}));
-
-      if (!nonceResponse.ok || !nonceData.nonce) {
+      if (!nonceResponse?.ok || !nonceData?.nonce) {
         return {
           success: false,
           error: {
@@ -72,42 +61,39 @@ export const authProvider: AuthProvider = {
         message: messageToSign,
       });
 
-      // Send to backend
-      const response = await fetch(`${API_BASE_URL}/admin/auth/signin`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: messageToSign,
-          signature: signature,
-        }),
+      // Exchange the signed message for a JWT
+      const { data, error, response } = await adminAuthSignIn({
+        body: { message: messageToSign, signature },
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        
+      if (!response?.ok || !data) {
+        const status = response?.status;
+        const apiMessage = (error as { message?: string } | undefined)?.message;
+
         // Enhanced error handling based on status codes and error messages
         let errorMessage = "Failed to authenticate with server";
-        
-        if (response.status === 401) {
-          errorMessage = errorData.message || "Invalid signature or wallet not authorized for admin access";
-        } else if (response.status === 403) {
+
+        if (status === 401) {
+          errorMessage =
+            apiMessage ||
+            "Invalid signature or wallet not authorized for admin access";
+        } else if (status === 403) {
           errorMessage = "This wallet does not have admin privileges";
-        } else if (response.status === 400) {
-          if (errorData.message?.includes("signature")) {
+        } else if (status === 400) {
+          if (apiMessage?.includes("signature")) {
             errorMessage = "Invalid signature format. Please try again.";
-          } else if (errorData.message?.includes("nonce")) {
+          } else if (apiMessage?.includes("nonce")) {
             errorMessage = "Message expired. Please refresh and try again.";
           } else {
-            errorMessage = errorData.message || "Invalid request format";
+            errorMessage = apiMessage || "Invalid request format";
           }
-        } else if (response.status >= 500) {
+        } else if (status && status >= 500) {
           errorMessage = "Server error. Please try again in a moment.";
         } else {
-          errorMessage = errorData.message || `Server returned error ${response.status}`;
+          errorMessage =
+            apiMessage || `Server returned error ${status ?? "(network)"}`;
         }
-        
+
         return {
           success: false,
           error: {
@@ -116,8 +102,6 @@ export const authProvider: AuthProvider = {
           },
         };
       }
-
-      const data: AdminAuthSignInDto = await response.json();
 
       // Store JWT token and admin info
       localStorage.setItem(TOKEN_KEY, data.access_token);
@@ -165,27 +149,22 @@ export const authProvider: AuthProvider = {
     }
 
     try {
-      // Verify token with backend
-      const response = await fetch(`${API_BASE_URL}/admin/auth/verify`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      // Verify token with backend (bearer header injected by the client)
+      const { response } = await adminAuthVerify();
 
-      if (response.ok) {
+      if (response?.ok) {
         return {
           authenticated: true,
         };
-      } else {
-        // Token is invalid, clean up
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(ADMIN_DATA_KEY);
-        return {
-          authenticated: false,
-          redirectTo: "/login",
-        };
       }
+
+      // Token is invalid, clean up
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(ADMIN_DATA_KEY);
+      return {
+        authenticated: false,
+        redirectTo: "/login",
+      };
     } catch {
       return {
         authenticated: false,
@@ -210,15 +189,9 @@ export const authProvider: AuthProvider = {
     if (token && adminDataStr) {
       try {
         // Get fresh admin data from backend
-        const response = await fetch(`${API_BASE_URL}/admin/auth/verify`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const { data, response } = await adminAuthVerify();
 
-        if (response.ok) {
-          const data: AdminAuthPayloadDto = await response.json();
+        if (response?.ok && data) {
           return {
             id: data.adminId,
             name: data.address,

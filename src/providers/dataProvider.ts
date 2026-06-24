@@ -1,220 +1,90 @@
-import { DataProvider, LogicalFilter } from "@refinedev/core";
-import type {
-  AdminIcsFormListResponseDto,
-  AdminIcsFormUpdateDto,
-  AdminDvtFormListResponseDto,
-  AdminDvtFormUpdateDto,
-  AdminUserListResponseDto,
-  AdminUserCreateDto,
-} from "../types/api";
-import { TOKEN_KEY } from "./authProvider";
-import { appConfig } from "../config/env";
+import type { DataProvider, LogicalFilter } from "@refinedev/core";
+import { appConfig } from "@/config/env";
+import { client, unwrap } from "./apiClient";
+import { RESOURCES, type ResourceHandlers } from "./resourceRegistry";
 
 const API_BASE_URL = appConfig.apiBaseUrl;
 
-const axiosInstance = {
-  async request(config: {
-    method: string;
-    url: string;
-    headers?: Record<string, string>;
-    data?: unknown;
-    params?: Record<string, unknown>;
-  }) {
-    const token = localStorage.getItem(TOKEN_KEY);
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      ...config.headers,
-    };
+type HttpVerb = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
+function resourceHandlers(resource: string): ResourceHandlers {
+  const handlers = RESOURCES[resource];
+  if (!handlers) {
+    throw new Error(`Resource "${resource}" not supported`);
+  }
+  return handlers;
+}
 
-    let url = `${API_BASE_URL}${config.url}`;
-
-    if (config.params) {
-      const searchParams = new URLSearchParams();
-      Object.entries(config.params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== "") {
-          searchParams.append(key, String(value));
-        }
-      });
-      const queryString = searchParams.toString();
-      if (queryString) {
-        url += `?${queryString}`;
-      }
-    }
-
-    const response = await fetch(url, {
-      method: config.method.toUpperCase(),
-      headers,
-      body: config.data ? JSON.stringify(config.data) : undefined,
-    });
-
-    const data = response.ok ? await response.json() : null;
-
-    if (!response.ok) {
-      const error = {
-        message: data?.message || `HTTP Error: ${response.status}`,
-        statusCode: response.status,
-      };
-      throw error;
-    }
-
-    return { data, status: response.status };
-  },
-};
-
+/**
+ * Refine data provider backed by the generated hey-api SDK.
+ *
+ * Wire types and transport come from `src/client/*` (see `resourceRegistry`);
+ * this layer only translates between Refine's call shape and the registry. The
+ * `as never` casts on returns are the unavoidable boundary cast — Refine's
+ * `TData` generic lives at the hook call site, not here, so the provider can't
+ * name it. They erase nothing the registry hasn't already type-checked.
+ */
 export const dataProvider: DataProvider = {
   getApiUrl: () => API_BASE_URL,
 
-  // Get list of resources with pagination and filters
-  // Uses direct API field names - no transformations needed!
   getList: async ({ resource, pagination, filters, sorters }) => {
-    const params: Record<string, string | number | boolean> = {};
+    const query: Record<string, unknown> = {};
 
-    // Pagination - direct pass through
     if (pagination) {
-      params.page = pagination.currentPage || 1;
-      params.pageSize = pagination.pageSize || 20;
+      query.page = pagination.currentPage ?? 1;
+      query.pageSize = pagination.pageSize ?? 20;
     }
 
-    // Filters - direct pass through, no field name transformations!
-    if (filters) {
-      filters.forEach((filter) => {
-        const logicalFilter = filter as LogicalFilter;
-        if (logicalFilter.value !== undefined && logicalFilter.value !== null && logicalFilter.value !== '') {
-          // Direct assignment - field names match API exactly
-          params[logicalFilter.field] = logicalFilter.value;
-        }
-      });
-    }
-
-    // Sorting - direct pass through
-    if (sorters && sorters.length > 0) {
-      const sorter = sorters[0];
-      params.sortBy = sorter.field;
-      params.sortOrder = sorter.order || 'asc';
-    }
-
-    // Determine API endpoint based on resource
-    const endpoint = resource === "admin-users" ? "/admin/users" : `/admin/${resource}`;
-
-    const { data } = await axiosInstance.request({
-      method: "GET",
-      url: endpoint,
-      params,
-    });
-
-    // Handle different response types
-    let responseData: AdminIcsFormListResponseDto | AdminDvtFormListResponseDto | AdminUserListResponseDto;
-
-    if (resource === "ics-forms") {
-      responseData = data as AdminIcsFormListResponseDto;
-    } else if (resource === "dvt-forms") {
-      responseData = data as AdminDvtFormListResponseDto;
-    } else if (resource === "admin-users") {
-      responseData = data as AdminUserListResponseDto;
-    } else {
-      throw new Error(`Resource ${resource} not supported`);
-    }
-
-    return {
-      data: responseData.items as any,
-      total: responseData.pagination.itemCount,
-    };
-  },
-
-  // Get one resource by ID
-  getOne: async ({ resource, id }) => {
-    const endpoint = resource === "admin-users" ? `/admin/users/${id}` : `/admin/${resource}/${id}`;
-
-    const { data } = await axiosInstance.request({
-      method: "GET",
-      url: endpoint,
-    });
-
-    return { data: data as any };
-  },
-
-  // Update resources
-  update: async ({ resource, id, variables, meta }) => {
-    if (resource === "ics-forms") {
-      const { data } = await axiosInstance.request({
-        method: "PATCH",
-        url: `/admin/${resource}/${id}`,
-        data: variables as AdminIcsFormUpdateDto,
-      });
-
-      return { data: data as any };
-    }
-
-    if (resource === "dvt-forms") {
-      const { data } = await axiosInstance.request({
-        method: "PATCH",
-        url: `/admin/${resource}/${id}`,
-        data: variables as AdminDvtFormUpdateDto,
-      });
-      return { data: data as any };
-    }
-
-    if (resource === "admin-users") {
-      // Handle custom endpoint for toggle-active
-      if (meta?.endpoint) {
-        const { data } = await axiosInstance.request({
-          method: meta.method?.toUpperCase() || "PATCH",
-          url: meta.endpoint,
-          data: variables,
-        });
-
-        return { data: data as any };
+    // Filter field names map 1:1 to API params — pass them straight through.
+    filters?.forEach((filter) => {
+      const { field, value } = filter as LogicalFilter;
+      if (value !== undefined && value !== null && value !== "") {
+        query[field] = value;
       }
-      
-      // Regular update
-      const { data } = await axiosInstance.request({
-        method: "PATCH",
-        url: `/admin/users/${id}`,
-        data: variables,
-      });
+    });
 
-      return { data: data as any };
+    if (sorters?.length) {
+      query.sortBy = sorters[0].field;
+      query.sortOrder = sorters[0].order ?? "asc";
     }
 
-    throw new Error(`Resource ${resource} not supported`);
+    const { items, pagination: meta } = await resourceHandlers(resource).list(query);
+    return { data: items as never[], total: meta.itemCount };
   },
 
-  // Create new resources
-  create: async ({ resource, variables }) => {
-    if (resource === "admin-users") {
-      const { data } = await axiosInstance.request({
-        method: "POST",
-        url: `/admin/users`,
-        data: variables as AdminUserCreateDto,
-      });
+  getOne: async ({ resource, id }) => {
+    const data = await resourceHandlers(resource).getOne(id);
+    return { data: data as never };
+  },
 
-      return { data: data as any };
+  update: async ({ resource, id, variables }) => {
+    const { update } = resourceHandlers(resource);
+    if (!update) {
+      throw new Error(`Update not supported for resource "${resource}"`);
     }
 
-    throw new Error(`Create operation not supported for resource ${resource}`);
+    const data = await update(id, variables as Record<string, unknown>);
+    return { data: data as never };
+  },
+
+  create: async ({ resource, variables }) => {
+    const { create } = resourceHandlers(resource);
+    if (!create) {
+      throw new Error(`Create not supported for resource "${resource}"`);
+    }
+
+    const data = await create(variables as Record<string, unknown>);
+    return { data: data as never };
+  },
+
+  getMany: async ({ resource, ids }) => {
+    const { getOne } = resourceHandlers(resource);
+    const data = await Promise.all(ids.map((id) => getOne(id)));
+    return { data: data as never[] };
   },
 
   deleteOne: async () => {
     throw new Error("Delete operation not supported in admin interface");
-  },
-
-  getMany: async ({ resource, ids }) => {
-    // Could implement batch fetching if needed
-    const promises = ids.map((id) =>
-      axiosInstance.request({
-        method: "GET",
-        url: `/admin/${resource}/${id}`,
-      })
-    );
-
-    const responses = await Promise.all(promises);
-    return {
-      data: responses.map((response) => response.data) as any,
-    };
   },
 
   createMany: async () => {
@@ -230,14 +100,15 @@ export const dataProvider: DataProvider = {
   },
 
   custom: async ({ url, method, headers, meta }) => {
-    const { data } = await axiosInstance.request({
-      method: method || "GET",
-      url,
-      headers,
-      data: meta?.data,
-      params: meta?.params,
-    });
-
-    return { data };
+    const data = await unwrap(
+      client.request({
+        method: (method?.toUpperCase() ?? "GET") as HttpVerb,
+        url,
+        headers,
+        body: meta?.data,
+        query: meta?.params as Record<string, unknown> | undefined,
+      }),
+    );
+    return { data: data as never };
   },
 };
