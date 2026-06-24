@@ -34,9 +34,9 @@ import {
   RefreshCw,
 } from "lucide-react";
 import type {
-  AdminDvtFormDetailDto,
+  AdminIdvtcFormDetailDto,
   FormStatus,
-  DvtCommentsDto,
+  IdvtcCommentsDto,
   AdminIdentity,
 } from "../../types/api";
 import { cn } from "@/lib/utils";
@@ -83,10 +83,10 @@ import {
 } from "@/components/ui";
 import { useIcsStatusList } from "../../hooks/useIcsStatus";
 import {
-  useDvtFormsByIdentifiersList,
-  type DvtIdentifier,
-} from "../../hooks/useDvtFormsByIdentifiers";
-import { DvtLinkedFormRowContent } from "../../components/ClusterMemberDvtMatch";
+  useIdvtcFormsByIdentifiersList,
+  type IdvtcIdentifier,
+} from "../../hooks/useIdvtcFormsByIdentifiers";
+import { IdvtcLinkedFormRowContent } from "../../components/ClusterMemberIdvtcMatch";
 
 const FieldLabel = ({
   icon: Icon,
@@ -103,8 +103,8 @@ const FieldLabel = ({
     {warn && warn.count > 0 && (
       <span
         className="inline-flex items-center"
-        title={`Appears in ${warn.count} other DVT application${warn.count === 1 ? "" : "s"}`}
-        aria-label="Warning: appears in other DVT applications"
+        title={`Appears in ${warn.count} other IDVTC application${warn.count === 1 ? "" : "s"}`}
+        aria-label="Warning: appears in other IDVTC applications"
       >
         <AlertTriangle className={cn("size-3.5", toneIcon.amber)} />
       </span>
@@ -146,7 +146,7 @@ const DECISIONS: {
   },
 ];
 
-export const DvtFormDetail = () => {
+export const IdvtcFormDetail = () => {
   const { id } = useParams();
   const { list } = useNavigation();
   const { mutate: updateForm, mutation: updateMutation } = useUpdate();
@@ -156,8 +156,8 @@ export const DvtFormDetail = () => {
   const {
     result: data,
     query: { isLoading, isError, refetch, isFetching },
-  } = useOne<AdminDvtFormDetailDto>({
-    resource: "dvt-forms",
+  } = useOne<AdminIdvtcFormDetailDto>({
+    resource: "idvtc-forms",
     id: id as string,
   });
 
@@ -174,11 +174,11 @@ export const DvtFormDetail = () => {
   );
   const icsStatus = useIcsStatusList(icsAddresses);
 
-  const dvtIdentifiers = useMemo<DvtIdentifier[]>(() => {
+  const idvtcIdentifiers = useMemo<IdvtcIdentifier[]>(() => {
     // Already-rejected forms don't need cross-application checks — decision is final.
     if (data?.status === "REJECTED") return [];
     const members = data?.form.clusterMembers ?? [];
-    const result: DvtIdentifier[] = [];
+    const result: IdvtcIdentifier[] = [];
     for (const m of members) {
       if (m.address) result.push({ kind: "address", value: m.address });
     }
@@ -199,12 +199,12 @@ export const DvtFormDetail = () => {
     data?.form.telegramUsername,
   ]);
 
-  const dvtMatches = useDvtFormsByIdentifiersList(dvtIdentifiers, data?.id);
+  const idvtcMatches = useIdvtcFormsByIdentifiersList(idvtcIdentifiers, data?.id);
 
   const discordLinkedForms =
-    dvtMatches.get("discordLink", data?.form.discordLink ?? "")?.forms ?? [];
+    idvtcMatches.get("discordLink", data?.form.discordLink ?? "")?.forms ?? [];
   const telegramLinkedForms =
-    dvtMatches.get("telegramUsername", data?.form.telegramUsername ?? "")
+    idvtcMatches.get("telegramUsername", data?.form.telegramUsername ?? "")
       ?.forms ?? [];
 
   // Build the per-address merged lookup once per render instead of calling
@@ -213,12 +213,12 @@ export const DvtFormDetail = () => {
   const mergedByAddress = useMemo(() => {
     const members = data?.form.clusterMembers ?? [];
     return new Map(
-      members.map((m) => [m.address, dvtMatches.getMerged({ address: m.address })])
+      members.map((m) => [m.address, idvtcMatches.getMerged({ address: m.address })])
     );
-  }, [data?.form.clusterMembers, dvtMatches]);
+  }, [data?.form.clusterMembers, idvtcMatches]);
 
   const [status, setStatus] = useState<FormStatus>();
-  const [comments, setComments] = useState<DvtCommentsDto>({});
+  const [comments, setComments] = useState<IdvtcCommentsDto>({});
   const [issued, setIssued] = useState<boolean>(false);
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -243,7 +243,7 @@ export const DvtFormDetail = () => {
   }, []);
 
   const handleCommentChange = useCallback(
-    (field: keyof DvtCommentsDto, value: string) => {
+    (field: keyof IdvtcCommentsDto, value: string) => {
       setComments((prev) => ({ ...prev, [field]: value }));
       setHasChanges(true);
     },
@@ -292,15 +292,15 @@ export const DvtFormDetail = () => {
 
     updateForm(
       {
-        resource: "dvt-forms",
+        resource: "idvtc-forms",
         id: parseInt(id),
         values: { status, comments, issued },
       },
       {
         onSuccess: () => {
           setHasChanges(false);
-          notify.success("DVT form review updated successfully");
-          list("dvt-forms");
+          notify.success("IDVTC form review updated successfully");
+          list("idvtc-forms");
         },
         onError: (error) => {
           notify.error(`Failed to save review: ${error.message}`);
@@ -312,7 +312,7 @@ export const DvtFormDetail = () => {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <LoadingState label="Loading DVT form…" />
+        <LoadingState label="Loading IDVTC form…" />
       </div>
     );
   }
@@ -323,7 +323,7 @@ export const DvtFormDetail = () => {
         <Panel className="mx-4 w-full max-w-md p-8">
           <QueryErrorState
             size="md"
-            title="Couldn't load DVT form"
+            title="Couldn't load IDVTC form"
             onRetry={() => refetch()}
             isRetrying={isFetching}
           />
@@ -340,12 +340,12 @@ export const DvtFormDetail = () => {
             icon={AlertTriangle}
             tone="destructive"
             size="md"
-            title="DVT form not found"
-            description="The requested DVT form could not be found or may have been removed."
+            title="IDVTC form not found"
+            description="The requested IDVTC form could not be found or may have been removed."
             action={
-              <Button onClick={() => list("dvt-forms")}>
+              <Button onClick={() => list("idvtc-forms")}>
                 <ArrowLeft className="size-4" />
-                Back to DVT forms
+                Back to IDVTC forms
               </Button>
             }
           />
@@ -364,9 +364,9 @@ export const DvtFormDetail = () => {
           <BreadcrumbItem>
             <BreadcrumbLink
               className="cursor-pointer"
-              onClick={() => list("dvt-forms")}
+              onClick={() => list("idvtc-forms")}
             >
-              DVT Forms
+              IDVTC Forms
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbItem>
@@ -380,7 +380,7 @@ export const DvtFormDetail = () => {
         <div className="space-y-1.5">
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-semibold tracking-tight">
-              DVT form review
+              IDVTC form review
             </h1>
             <span className="rounded-md bg-secondary px-2 py-0.5 text-sm font-medium tabular-nums text-muted-foreground">
               #{form.id}
@@ -408,17 +408,17 @@ export const DvtFormDetail = () => {
             </SoftBadge>
           )}
           <DetailStatusBadge status={form.status} />
-          <Button variant="outline" onClick={() => list("dvt-forms")}>
+          <Button variant="outline" onClick={() => list("idvtc-forms")}>
             <ArrowLeft className="size-4" />
             Back
           </Button>
         </div>
       </div>
 
-      {/* Submitted DVT Form Data */}
+      {/* Submitted IDVTC Form Data */}
       <Panel className="overflow-hidden">
         <div className="border-b px-6 py-4">
-          <h2 className="text-sm font-semibold">Submitted DVT form data</h2>
+          <h2 className="text-sm font-semibold">Submitted IDVTC form data</h2>
         </div>
         <div className="grid grid-cols-1 gap-x-8 gap-y-6 p-6 xl:grid-cols-2">
           {/* Left Column - Form Fields */}
@@ -474,7 +474,7 @@ export const DvtFormDetail = () => {
                       key={linkedForm.id}
                       className="rounded bg-card px-2 py-1.5"
                     >
-                      <DvtLinkedFormRowContent
+                      <IdvtcLinkedFormRowContent
                         form={linkedForm}
                         matchedOn={["discordLink"]}
                       />
@@ -503,7 +503,7 @@ export const DvtFormDetail = () => {
                         key={linkedForm.id}
                         className="rounded bg-card px-2 py-1.5"
                       >
-                        <DvtLinkedFormRowContent
+                        <IdvtcLinkedFormRowContent
                           form={linkedForm}
                           matchedOn={["telegramUsername"]}
                         />
@@ -533,17 +533,17 @@ export const DvtFormDetail = () => {
                         Re-check ICS
                       </Button>
                     )}
-                    {dvtMatches.hasError && (
+                    {idvtcMatches.hasError && (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={dvtMatches.refetchAll}
-                        disabled={dvtMatches.isLoading}
+                        onClick={idvtcMatches.refetchAll}
+                        disabled={idvtcMatches.isLoading}
                       >
                         <RefreshCw
-                          className={cn("size-3.5", dvtMatches.isLoading && "animate-spin")}
+                          className={cn("size-3.5", idvtcMatches.isLoading && "animate-spin")}
                         />
-                        Re-check DVT
+                        Re-check IDVTC
                       </Button>
                     )}
                   </div>
@@ -577,8 +577,8 @@ export const DvtFormDetail = () => {
                                   {hasLinked && (
                                     <span
                                       className="inline-flex shrink-0 items-center"
-                                      title={`Appears in ${linked.length} other DVT application${linked.length === 1 ? "" : "s"}`}
-                                      aria-label="Warning: appears in other DVT applications"
+                                      title={`Appears in ${linked.length} other IDVTC application${linked.length === 1 ? "" : "s"}`}
+                                      aria-label="Warning: appears in other IDVTC applications"
                                     >
                                       <AlertTriangle
                                         className={cn("size-3.5", toneIcon.amber)}
@@ -624,7 +624,7 @@ export const DvtFormDetail = () => {
                                     {isLast ? "└" : "├"}
                                   </TableCell>
                                   <TableCell colSpan={4} className="py-2">
-                                    <DvtLinkedFormRowContent
+                                    <IdvtcLinkedFormRowContent
                                       form={linkedForm}
                                       matchedOn={linkedForm.matchedOn}
                                     />
@@ -751,13 +751,13 @@ export const DvtFormDetail = () => {
         </div>
       </Panel>
 
-      {/* Other DVT Forms from Same Address Section */}
+      {/* Other IDVTC Forms from Same Address Section */}
       <OtherFormsFromAddress
         currentFormId={form.id}
         mainAddress={form.form.mainAddress}
-        resource="dvt-forms"
-        basePath="/dvt-forms"
-        proofLabel="DVT Proof"
+        resource="idvtc-forms"
+        basePath="/idvtc-forms"
+        proofLabel="IDVTC Proof"
       />
 
       {/* Save Review Block */}
@@ -802,7 +802,7 @@ export const DvtFormDetail = () => {
             </TooltipProvider>
           </div>
 
-          {/* Set DVT Proof as Issued - Show when status is approved */}
+          {/* Set IDVTC Proof as Issued - Show when status is approved */}
           {status === "APPROVED" && !isReadOnly && (
             <div className="flex items-center justify-between rounded-md border bg-muted/50 p-4">
               <div className="flex items-center gap-3">
@@ -817,10 +817,10 @@ export const DvtFormDetail = () => {
                     htmlFor="issued-switch"
                     className="cursor-pointer text-sm font-medium text-foreground"
                   >
-                    DVT Proof issued
+                    IDVTC Proof issued
                   </label>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    Form will be read-only after DVT Proof is issued
+                    Form will be read-only after IDVTC Proof is issued
                   </p>
                 </div>
               </div>
@@ -880,7 +880,7 @@ export const DvtFormDetail = () => {
                     </>
                   )}
                 </Button>
-                <Button variant="outline" onClick={() => list("dvt-forms")}>
+                <Button variant="outline" onClick={() => list("idvtc-forms")}>
                   <ArrowLeft className="size-4" />
                   Back to list
                 </Button>
@@ -894,10 +894,10 @@ export const DvtFormDetail = () => {
               {isFormIssued ? (
                 <Alert className={cn(toneBorder.emerald, toneTint.emerald)}>
                   <CheckCircle className={cn("size-4", toneIcon.emerald)} />
-                  <AlertTitle>DVT Proof issued</AlertTitle>
+                  <AlertTitle>IDVTC Proof issued</AlertTitle>
                   <AlertDescription>
-                    DVT Proof has been issued for this form and can no longer be
-                    edited.
+                    IDVTC Proof has been issued for this form and can no longer
+                    be edited.
                   </AlertDescription>
                 </Alert>
               ) : isFormOutdated ? (
@@ -914,7 +914,7 @@ export const DvtFormDetail = () => {
                   <Eye className="size-4 text-primary" />
                   <AlertTitle>View-only access</AlertTitle>
                   <AlertDescription>
-                    Viewer role has read-only access to DVT form reviews.
+                    Viewer role has read-only access to IDVTC form reviews.
                   </AlertDescription>
                 </Alert>
               ) : (
@@ -922,13 +922,13 @@ export const DvtFormDetail = () => {
                   <Shield className="size-4 text-muted-foreground" />
                   <AlertTitle>Read-only mode</AlertTitle>
                   <AlertDescription>
-                    Supervisor role has view-only access to DVT form reviews.
+                    Supervisor role has view-only access to IDVTC form reviews.
                   </AlertDescription>
                 </Alert>
               )}
 
               {/* Back to List Button for Read-only Mode */}
-              <Button variant="outline" onClick={() => list("dvt-forms")}>
+              <Button variant="outline" onClick={() => list("idvtc-forms")}>
                 <ArrowLeft className="size-4" />
                 Back to list
               </Button>

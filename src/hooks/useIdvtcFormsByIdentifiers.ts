@@ -1,15 +1,15 @@
 import { useDataProvider } from "@refinedev/core";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
-import type { AdminDvtFormItemDto, FormStatus } from "../types/api";
+import type { AdminIdvtcFormItemDto, FormStatus } from "../types/api";
 
-const QUERY_KEY = "dvt-forms-by-identifier";
+const QUERY_KEY = "idvtc-forms-by-identifier";
 
-export type DvtMatchKind = "address" | "discordLink" | "telegramUsername";
+export type IdvtcMatchKind = "address" | "discordLink" | "telegramUsername";
 
-export type DvtAddressRole = "main" | "member";
+export type IdvtcAddressRole = "main" | "member";
 
-export interface DvtFormMatch {
+export interface IdvtcFormMatch {
   id: number;
   status: FormStatus;
   issued: boolean;
@@ -17,19 +17,19 @@ export interface DvtFormMatch {
   createdAt: string;
   // Only set when the form was located via the "address" kind: indicates whether
   // the queried address acts as the form's main address or as a cluster member.
-  addressRole?: DvtAddressRole;
+  addressRole?: IdvtcAddressRole;
 }
 
-export interface DvtFormMatchWithReasons extends DvtFormMatch {
-  matchedOn: DvtMatchKind[];
+export interface IdvtcFormMatchWithReasons extends IdvtcFormMatch {
+  matchedOn: IdvtcMatchKind[];
 }
 
-export interface DvtIdentifier {
-  kind: DvtMatchKind;
+export interface IdvtcIdentifier {
+  kind: IdvtcMatchKind;
   value?: string;
 }
 
-const toMatch = (f: AdminDvtFormItemDto): DvtFormMatch => ({
+const toMatch = (f: AdminIdvtcFormItemDto): IdvtcFormMatch => ({
   id: f.id,
   status: f.status,
   issued: f.issued,
@@ -41,16 +41,16 @@ const toMatch = (f: AdminDvtFormItemDto): DvtFormMatch => ({
 // linked form's main address or as a cluster member. `address` is already
 // normalized (lowercased) by the caller.
 const resolveAddressRole = (
-  f: AdminDvtFormItemDto,
+  f: AdminIdvtcFormItemDto,
   address: string
-): DvtAddressRole => {
+): IdvtcAddressRole => {
   if (f.form?.mainAddress?.toLowerCase() === address) return "main";
   return "member";
 };
 
 // Higher score = stronger signal. Approved-issued is the "especially" case.
 // Outdated drops below an active in-review form but above rejected (rejected is filtered out anyway).
-const scoreOf = (f: DvtFormMatch): number => {
+const scoreOf = (f: IdvtcFormMatch): number => {
   let base: number;
   if (f.status === "APPROVED" && f.issued) base = 100;
   else if (f.status === "APPROVED") base = 80;
@@ -60,7 +60,7 @@ const scoreOf = (f: DvtFormMatch): number => {
   return base;
 };
 
-const sortByScore = <T extends DvtFormMatch>(forms: T[]): T[] =>
+const sortByScore = <T extends IdvtcFormMatch>(forms: T[]): T[] =>
   [...forms].sort((a, b) => {
     const ds = scoreOf(b) - scoreOf(a);
     if (ds !== 0) return ds;
@@ -70,10 +70,10 @@ const sortByScore = <T extends DvtFormMatch>(forms: T[]): T[] =>
 // Backend matches discord/telegram case-insensitively; we lowercase for stable cache keys.
 const normalize = (value: string): string => value.trim().toLowerCase();
 
-const keyOf = (kind: DvtMatchKind, value: string) => `${kind}:${value}`;
+const keyOf = (kind: IdvtcMatchKind, value: string) => `${kind}:${value}`;
 
-export const useDvtFormsByIdentifiersList = (
-  identifiers: DvtIdentifier[],
+export const useIdvtcFormsByIdentifiersList = (
+  identifiers: IdvtcIdentifier[],
   excludeFormId?: number
 ) => {
   const dataProvider = useDataProvider();
@@ -82,7 +82,7 @@ export const useDvtFormsByIdentifiersList = (
   // Deduplicate (kind, normalized value) pairs so React Query fires one request per unique lookup.
   const validIdentifiers = useMemo(() => {
     const seen = new Set<string>();
-    const result: { kind: DvtMatchKind; value: string }[] = [];
+    const result: { kind: IdvtcMatchKind; value: string }[] = [];
     for (const { kind, value } of identifiers) {
       if (!value) continue;
       const v = normalize(value);
@@ -98,9 +98,9 @@ export const useDvtFormsByIdentifiersList = (
   const queries = useQueries({
     queries: validIdentifiers.map(({ kind, value }) => ({
       queryKey: [QUERY_KEY, kind, value] as const,
-      queryFn: async (): Promise<DvtFormMatch[]> => {
-        const { data } = await dataProvider().getList<AdminDvtFormItemDto>({
-          resource: "dvt-forms",
+      queryFn: async (): Promise<IdvtcFormMatch[]> => {
+        const { data } = await dataProvider().getList<AdminIdvtcFormItemDto>({
+          resource: "idvtc-forms",
           filters: [{ field: kind, operator: "eq", value }],
           pagination: { currentPage: 1, pageSize: 100 },
           sorters: [{ field: "id", order: "desc" }],
@@ -124,14 +124,14 @@ export const useDvtFormsByIdentifiersList = (
     const map = new Map<
       string,
       {
-        forms: DvtFormMatch[];
+        forms: IdvtcFormMatch[];
         isLoading: boolean;
         isError: boolean;
       }
     >();
     validIdentifiers.forEach(({ kind, value }, idx) => {
       const q = queries[idx];
-      const all = (q?.data ?? []) as DvtFormMatch[];
+      const all = (q?.data ?? []) as IdvtcFormMatch[];
       const filtered = all
         .filter((f) => f.status !== "REJECTED")
         .filter((f) => (excludeFormId != null ? f.id !== excludeFormId : true));
@@ -152,7 +152,7 @@ export const useDvtFormsByIdentifiersList = (
   }, [queryClient]);
 
   const get = useCallback(
-    (kind: DvtMatchKind, value?: string) => {
+    (kind: IdvtcMatchKind, value?: string) => {
       if (!value) return undefined;
       const v = normalize(value);
       if (!v) return undefined;
@@ -166,16 +166,16 @@ export const useDvtFormsByIdentifiersList = (
   // surface "matched on Discord + Telegram" instead of showing the form thrice.
   const getMerged = useCallback(
     (
-      values: Partial<Record<DvtMatchKind, string | undefined>>
+      values: Partial<Record<IdvtcMatchKind, string | undefined>>
     ): {
-      forms: DvtFormMatchWithReasons[];
+      forms: IdvtcFormMatchWithReasons[];
       isLoading: boolean;
       isError: boolean;
     } => {
-      const acc = new Map<number, DvtFormMatchWithReasons>();
+      const acc = new Map<number, IdvtcFormMatchWithReasons>();
       let mergedLoading = false;
       let mergedError = false;
-      (Object.entries(values) as [DvtMatchKind, string | undefined][]).forEach(
+      (Object.entries(values) as [IdvtcMatchKind, string | undefined][]).forEach(
         ([kind, value]) => {
           const r = get(kind, value);
           if (!r) return;
@@ -211,6 +211,6 @@ export const useDvtFormsByIdentifiersList = (
   return { get, getMerged, hasError, isLoading, refetchAll };
 };
 
-export type UseDvtFormsByIdentifiersListResult = ReturnType<
-  typeof useDvtFormsByIdentifiersList
+export type UseIdvtcFormsByIdentifiersListResult = ReturnType<
+  typeof useIdvtcFormsByIdentifiersList
 >;

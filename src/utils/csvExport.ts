@@ -1,4 +1,4 @@
-import type { AdminIcsFormItemDto, IcsFormFilters, AdminDvtFormItemDto, DvtFormFilters } from '../types/api';
+import type { AdminIcsFormItemDto, IcsFormFilters, AdminIdvtcFormItemDto, IdvtcFormFilters } from '../types/api';
 
 export interface FlattenedIcsForm {
   id: number;
@@ -167,7 +167,7 @@ export const generateFilename = (filters: IcsFormFilters): string => {
   return `ics-forms${filterString}-${date}.csv`;
 };
 
-export interface FlattenedDvtForm {
+export interface FlattenedIdvtcForm {
   id: number;
   mainAddress: string;
   discordLink: string;
@@ -200,7 +200,7 @@ export interface FlattenedDvtForm {
   clusterMember4Comment: string;
 }
 
-export const flattenDvtForm = (form: AdminDvtFormItemDto): FlattenedDvtForm => {
+export const flattenIdvtcForm = (form: AdminIdvtcFormItemDto): FlattenedIdvtcForm => {
   const members = form.form.clusterMembers || [];
   const memberComments = form.comments.clusterMembers || [];
 
@@ -238,16 +238,16 @@ export const flattenDvtForm = (form: AdminDvtFormItemDto): FlattenedDvtForm => {
   };
 };
 
-export const generateDvtCsvContent = (forms: AdminDvtFormItemDto[]): string => {
+export const generateIdvtcCsvContent = (forms: AdminIdvtcFormItemDto[]): string => {
   if (forms.length === 0) return '';
 
-  const flattenedForms = forms.map(flattenDvtForm);
+  const flattenedForms = forms.map(flattenIdvtcForm);
   const headers = Object.keys(flattenedForms[0]);
   const headerRow = headers.join(',');
 
   const dataRows = flattenedForms.map(form => {
     return headers.map(header => {
-      const value = form[header as keyof FlattenedDvtForm];
+      const value = form[header as keyof FlattenedIdvtcForm];
       if (value === null || value === undefined) return '';
       const stringValue = String(value);
       if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
@@ -260,7 +260,7 @@ export const generateDvtCsvContent = (forms: AdminDvtFormItemDto[]): string => {
   return [headerRow, ...dataRows].join('\n');
 };
 
-export const generateDvtFilename = (filters: DvtFormFilters): string => {
+export const generateIdvtcFilename = (filters: IdvtcFormFilters): string => {
   const now = new Date();
   const date = now.toISOString().split('T')[0];
   const filterParts: string[] = [];
@@ -276,7 +276,7 @@ export const generateDvtFilename = (filters: DvtFormFilters): string => {
   }
 
   const filterString = filterParts.length > 0 ? `-${filterParts.join('-')}` : '';
-  return `dvt-forms${filterString}-${date}.csv`;
+  return `idvtc-forms${filterString}-${date}.csv`;
 };
 
 export const downloadCsv = (content: string, filename: string): void => {

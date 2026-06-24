@@ -30,11 +30,11 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { usePersistentTableState } from "../../hooks/usePersistentTableState";
 import { useTableFilters } from "../../hooks/useTableFilters";
-import type { AdminDvtFormItemDto, FormStatus } from "../../types/api";
+import type { AdminIdvtcFormItemDto, FormStatus } from "../../types/api";
 import {
   downloadCsv,
-  generateDvtCsvContent,
-  generateDvtFilename,
+  generateIdvtcCsvContent,
+  generateIdvtcFilename,
 } from "../../utils/csvExport";
 
 type SortField =
@@ -49,7 +49,7 @@ const COLUMNS: { field: SortField; label: string }[] = [
   { field: "id", label: "ID" },
   { field: "mainAddress", label: "Main Address" },
   { field: "status", label: "Status" },
-  { field: "issued", label: "DVT Proof" },
+  { field: "issued", label: "IDVTC Proof" },
   { field: "outdated", label: "Form" },
   { field: "createdAt", label: "Submitted" },
 ];
@@ -91,7 +91,7 @@ const OutdatedCell = ({ outdated }: { outdated: boolean }) =>
     <span className="text-sm text-muted-foreground">Current</span>
   );
 
-export const DvtFormsList = () => {
+export const IdvtcFormsList = () => {
   const dataProvider = useDataProvider();
   const { buildFilters, hasActiveFilters } = useTableFilters();
 
@@ -107,15 +107,15 @@ export const DvtFormsList = () => {
     updatePageSize,
     resetTableState,
     hasStoredState,
-  } = usePersistentTableState("csm-dvt-table-state");
+  } = usePersistentTableState("csm-idvtc-table-state");
 
   const [isExporting, setIsExporting] = useState(false);
 
   const {
     result: data,
     query: { isLoading, isError, refetch, isFetching },
-  } = useList<AdminDvtFormItemDto>({
-    resource: "dvt-forms",
+  } = useList<AdminIdvtcFormItemDto>({
+    resource: "idvtc-forms",
     pagination: {
       currentPage,
       pageSize,
@@ -179,15 +179,15 @@ export const DvtFormsList = () => {
     try {
       const exportFilters = buildFilters(filterValues);
 
-      const exportData = await dataProvider().getList<AdminDvtFormItemDto>({
-        resource: "dvt-forms",
+      const exportData = await dataProvider().getList<AdminIdvtcFormItemDto>({
+        resource: "idvtc-forms",
         pagination: { currentPage: 1, pageSize: total },
         filters: exportFilters,
         sorters: [{ field: sortField, order: sortOrder }],
       });
 
-      const csvContent = generateDvtCsvContent(exportData.data);
-      const filename = generateDvtFilename({
+      const csvContent = generateIdvtcCsvContent(exportData.data);
+      const filename = generateIdvtcFilename({
         status: filterValues.status as FormStatus,
         address: filterValues.address as string,
         issued: filterValues.issued as boolean,
@@ -218,7 +218,7 @@ export const DvtFormsList = () => {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
-        title="DVT forms"
+        title="IDVTC forms"
         count={data?.total}
         description="Review and manage Distributed Validator Technology form submissions."
         actions={
@@ -264,7 +264,7 @@ export const DvtFormsList = () => {
               onChange={handleStatusFilter}
             />
             <SegmentedControl
-              aria-label="Filter by DVT proof"
+              aria-label="Filter by IDVTC proof"
               options={ISSUED_OPTIONS}
               value={filterValues.issued as boolean | undefined}
               onChange={handleIssuedFilter}
@@ -323,7 +323,7 @@ export const DvtFormsList = () => {
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={colSpan}>
                     <QueryErrorState
-                      title="Couldn't load DVT forms"
+                      title="Couldn't load IDVTC forms"
                       onRetry={() => refetch()}
                       isRetrying={isFetching}
                       className="py-14"
@@ -337,11 +337,11 @@ export const DvtFormsList = () => {
                   <TableCell colSpan={colSpan}>
                     <EmptyState
                       icon={FileText}
-                      title="No DVT forms found"
+                      title="No IDVTC forms found"
                       description={
                         hasActiveFilters(filterValues)
                           ? "Try adjusting your filters to see more results."
-                          : "No DVT forms have been submitted yet."
+                          : "No IDVTC forms have been submitted yet."
                       }
                       className="py-14"
                     />
@@ -354,7 +354,7 @@ export const DvtFormsList = () => {
                   <TableRow key={form.id} className="group">
                     <TableCell className="tabular-nums">
                       <Link
-                        to={`/dvt-forms/${form.id}`}
+                        to={`/idvtc-forms/${form.id}`}
                         className="font-medium text-primary hover:underline"
                       >
                         #{form.id}
@@ -386,13 +386,13 @@ export const DvtFormsList = () => {
                         className="text-muted-foreground hover:text-foreground"
                       >
                         <Link
-                          to={`/dvt-forms/${form.id}`}
+                          to={`/idvtc-forms/${form.id}`}
                           title={
                             form.issued
-                              ? "View form with issued DVT Proof"
+                              ? "View form with issued IDVTC Proof"
                               : form.outdated
                               ? "View outdated form"
-                              : "Review DVT form"
+                              : "Review IDVTC form"
                           }
                         >
                           {form.issued || form.outdated ? (

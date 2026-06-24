@@ -35,17 +35,18 @@ export const tableConfigs: Record<string, TableConfig> = {
     // All filter field names match API parameters exactly
     filters: {
       role: 'select',         // API: role
-      active: 'boolean',      // API: active  
-      address: 'text'         // API: address
+      active: 'boolean',      // API: active
+      address: 'text',        // API: address
+      name: 'text'            // API: name
     },
-    // sortBy API parameter accepts these exact values (pending API update to include 'id')
-    sortableFields: ['id', 'createdAt', 'updatedAt', 'address', 'role', 'active'],
+    // sortBy API parameter accepts these exact values
+    sortableFields: ['id', 'createdAt', 'updatedAt', 'address', 'name', 'role', 'active'],
     defaultSort: {
       field: 'createdAt',
       order: 'desc'
     }
   },
-  'dvt-forms': {
+  'idvtc-forms': {
     filters: {
       status: 'select',
       address: 'text',

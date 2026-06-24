@@ -15,12 +15,12 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { SoftBadge, type Tone } from "@/components/ui";
 import type {
-  DvtAddressRole,
-  DvtFormMatch,
-  DvtMatchKind,
-} from "../hooks/useDvtFormsByIdentifiers";
+  IdvtcAddressRole,
+  IdvtcFormMatch,
+  IdvtcMatchKind,
+} from "../hooks/useIdvtcFormsByIdentifiers";
 
-const statusVariant = (form: DvtFormMatch) => {
+const statusVariant = (form: IdvtcFormMatch) => {
   if (form.status === "APPROVED" && form.issued) {
     return {
       Icon: CheckCircle,
@@ -62,7 +62,7 @@ const defaultMatchTone: Tone = "amber";
 const mainRoleMatchTone: Tone = "red";
 
 const staticMatchKindMeta: Record<
-  Exclude<DvtMatchKind, "address">,
+  Exclude<IdvtcMatchKind, "address">,
   MatchKindMeta
 > = {
   discordLink: {
@@ -79,7 +79,7 @@ const staticMatchKindMeta: Record<
   },
 };
 
-const addressMatchMeta = (role?: DvtAddressRole): MatchKindMeta => {
+const addressMatchMeta = (role?: IdvtcAddressRole): MatchKindMeta => {
   if (role === "main") {
     return {
       Icon: User,
@@ -105,31 +105,31 @@ const addressMatchMeta = (role?: DvtAddressRole): MatchKindMeta => {
 };
 
 const metaFor = (
-  kind: DvtMatchKind,
-  addressRole?: DvtAddressRole
+  kind: IdvtcMatchKind,
+  addressRole?: IdvtcAddressRole
 ): MatchKindMeta =>
   kind === "address" ? addressMatchMeta(addressRole) : staticMatchKindMeta[kind];
 
-interface DvtLinkedFormRowContentProps {
-  form: DvtFormMatch;
-  matchedOn?: DvtMatchKind[];
+interface IdvtcLinkedFormRowContentProps {
+  form: IdvtcFormMatch;
+  matchedOn?: IdvtcMatchKind[];
   basePath?: string;
 }
 
-export const DvtLinkedFormRowContent = ({
+export const IdvtcLinkedFormRowContent = ({
   form,
   matchedOn,
-  basePath = "/dvt-forms",
-}: DvtLinkedFormRowContentProps) => {
+  basePath = "/idvtc-forms",
+}: IdvtcLinkedFormRowContentProps) => {
   const { Icon, label, tone } = statusVariant(form);
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs">
       <Link
         to={`${basePath}/${form.id}`}
         className="inline-flex items-center gap-1 font-medium text-foreground hover:underline"
-        title={`Open DVT form #${form.id}`}
+        title={`Open IDVTC form #${form.id}`}
       >
-        DVT Form #{form.id}
+        IDVTC Form #{form.id}
         <ExternalLink className="size-3" />
       </Link>
       <SoftBadge tone={tone} size="sm" icon={Icon}>

@@ -13,8 +13,8 @@ import { AdminUserCreate, AdminUsersList } from "./pages/admin-users";
 import { DesignSystemShowcase } from "./pages/design-system";
 import { IcsFormDetail } from "./pages/ics-forms/detail";
 import { IcsFormsList } from "./pages/ics-forms/list";
-import { DvtFormDetail } from "./pages/dvt-forms/detail";
-import { DvtFormsList } from "./pages/dvt-forms/list";
+import { IdvtcFormDetail } from "./pages/idvtc-forms/detail";
+import { IdvtcFormsList } from "./pages/idvtc-forms/list";
 import { Login } from "./pages/login";
 import { SettingsPage } from "./pages/settings";
 import { authProvider } from "./providers/authProvider";
@@ -76,11 +76,11 @@ function App() {
                   },
                 },
                 {
-                  name: "dvt-forms",
-                  list: "/dvt-forms",
-                  show: "/dvt-forms/:id",
+                  name: "idvtc-forms",
+                  list: "/idvtc-forms",
+                  show: "/idvtc-forms/:id",
                   meta: {
-                    label: "DVT Forms",
+                    label: "IDVTC Forms",
                   },
                 },
                 {
@@ -126,10 +126,10 @@ function App() {
                             path="/forms/:id"
                             element={<IcsFormDetail />}
                           />
-                          <Route path="/dvt-forms" element={<DvtFormsList />} />
+                          <Route path="/idvtc-forms" element={<IdvtcFormsList />} />
                           <Route
-                            path="/dvt-forms/:id"
-                            element={<DvtFormDetail />}
+                            path="/idvtc-forms/:id"
+                            element={<IdvtcFormDetail />}
                           />
                           <Route path="/users" element={<AdminUsersList />} />
                           <Route
