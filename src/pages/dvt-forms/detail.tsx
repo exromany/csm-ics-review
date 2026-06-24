@@ -21,6 +21,7 @@ import {
   Clock,
   CircleCheck,
   CircleX,
+  Copy,
   Save,
   Loader2,
   AlertTriangle,
@@ -266,6 +267,24 @@ export const DvtFormDetail = () => {
   const handleIssuedChange = (value: boolean) => {
     setIssued(value);
     setHasChanges(true);
+  };
+
+  // idvtc validation command: main address followed by each cluster member.
+  const generateIdvtcCommand = () => {
+    const addresses = [
+      data?.form.mainAddress,
+      ...(data?.form.clusterMembers?.map((m) => m.address) ?? []),
+    ].filter(Boolean);
+    return `python idvtc.py check ${addresses.join(" ")}`;
+  };
+
+  const copyToClipboard = async (text: string, commandType: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      notify.success(`${commandType} copied to clipboard`);
+    } catch {
+      notify.error("Failed to copy to clipboard");
+    }
   };
 
   const handleSubmit = () => {
@@ -709,6 +728,25 @@ export const DvtFormDetail = () => {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Copy validation command */}
+        <div className="border-t px-6 py-6">
+          <div className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Copy validation command
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                copyToClipboard(generateIdvtcCommand(), "idvtc check command")
+              }
+            >
+              <Copy className="size-3.5" />
+              idvtc check
+            </Button>
           </div>
         </div>
       </Panel>
