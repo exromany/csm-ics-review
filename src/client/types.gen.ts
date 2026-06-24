@@ -684,6 +684,10 @@ export type AdminAuthGetNonceData = {
 
 export type AdminAuthGetNonceErrors = {
     /**
+     * Rate limit exceeded
+     */
+    429: ApiErrorDto;
+    /**
      * Error (ApiError envelope)
      */
     default: ApiErrorDto;
@@ -709,6 +713,10 @@ export type AdminAuthSignInData = {
 
 export type AdminAuthSignInErrors = {
     /**
+     * Rate limit exceeded
+     */
+    429: ApiErrorDto;
+    /**
      * Error (ApiError envelope)
      */
     default: ApiErrorDto;
@@ -733,6 +741,10 @@ export type AdminAuthVerifyData = {
 };
 
 export type AdminAuthVerifyErrors = {
+    /**
+     * Rate limit exceeded
+     */
+    429: ApiErrorDto;
     /**
      * Error (ApiError envelope)
      */
@@ -800,6 +812,10 @@ export type AdminIcsFormsGetFormsListData = {
 
 export type AdminIcsFormsGetFormsListErrors = {
     /**
+     * Rate limit exceeded
+     */
+    429: ApiErrorDto;
+    /**
      * Error (ApiError envelope)
      */
     default: ApiErrorDto;
@@ -834,6 +850,10 @@ export type AdminIcsFormsGetFormDetailErrors = {
      */
     404: unknown;
     /**
+     * Rate limit exceeded
+     */
+    429: ApiErrorDto;
+    /**
      * Error (ApiError envelope)
      */
     default: ApiErrorDto;
@@ -867,6 +887,10 @@ export type AdminIcsFormsUpdateFormErrors = {
      * ICS form not found
      */
     404: unknown;
+    /**
+     * Rate limit exceeded
+     */
+    429: ApiErrorDto;
     /**
      * Error (ApiError envelope)
      */
@@ -942,6 +966,10 @@ export type AdminIdvtcFormsGetFormsListData = {
 
 export type AdminIdvtcFormsGetFormsListErrors = {
     /**
+     * Rate limit exceeded
+     */
+    429: ApiErrorDto;
+    /**
      * Error (ApiError envelope)
      */
     default: ApiErrorDto;
@@ -975,6 +1003,10 @@ export type AdminIdvtcFormsGetFormDetailErrors = {
      * IDVTC form not found
      */
     404: unknown;
+    /**
+     * Rate limit exceeded
+     */
+    429: ApiErrorDto;
     /**
      * Error (ApiError envelope)
      */
@@ -1010,6 +1042,10 @@ export type AdminIdvtcFormsUpdateFormErrors = {
      */
     404: unknown;
     /**
+     * Rate limit exceeded
+     */
+    429: ApiErrorDto;
+    /**
      * Error (ApiError envelope)
      */
     default: ApiErrorDto;
@@ -1036,6 +1072,10 @@ export type AdminMembersGetMembersData = {
 };
 
 export type AdminMembersGetMembersErrors = {
+    /**
+     * Rate limit exceeded
+     */
+    429: ApiErrorDto;
     /**
      * Error (ApiError envelope)
      */
@@ -1064,6 +1104,10 @@ export type AdminMembersInitMembersErrors = {
      * Already initialized / duplicate
      */
     400: unknown;
+    /**
+     * Rate limit exceeded
+     */
+    429: ApiErrorDto;
     /**
      * Error (ApiError envelope)
      */
@@ -1101,6 +1145,10 @@ export type AdminRotationRequestsGetListData = {
 
 export type AdminRotationRequestsGetListErrors = {
     /**
+     * Rate limit exceeded
+     */
+    429: ApiErrorDto;
+    /**
      * Error (ApiError envelope)
      */
     default: ApiErrorDto;
@@ -1125,6 +1173,10 @@ export type AdminRotationRequestsGetDetailData = {
 
 export type AdminRotationRequestsGetDetailErrors = {
     404: unknown;
+    /**
+     * Rate limit exceeded
+     */
+    429: ApiErrorDto;
     /**
      * Error (ApiError envelope)
      */
@@ -1154,6 +1206,10 @@ export type AdminRotationRequestsPatchErrors = {
      * Request no longer actionable
      */
     409: unknown;
+    /**
+     * Rate limit exceeded
+     */
+    429: ApiErrorDto;
     /**
      * Error (ApiError envelope)
      */
@@ -1210,6 +1266,10 @@ export type AdminUsersGetUsersListData = {
 
 export type AdminUsersGetUsersListErrors = {
     /**
+     * Rate limit exceeded
+     */
+    429: ApiErrorDto;
+    /**
      * Error (ApiError envelope)
      */
     default: ApiErrorDto;
@@ -1242,6 +1302,10 @@ export type AdminUsersCreateUserErrors = {
      * Admin user with this address already exists
      */
     409: unknown;
+    /**
+     * Rate limit exceeded
+     */
+    429: ApiErrorDto;
     /**
      * Error (ApiError envelope)
      */
@@ -1276,6 +1340,10 @@ export type AdminUsersGetUserDetailErrors = {
      * Admin user not found
      */
     404: unknown;
+    /**
+     * Rate limit exceeded
+     */
+    429: ApiErrorDto;
     /**
      * Error (ApiError envelope)
      */
@@ -1314,6 +1382,10 @@ export type AdminUsersUpdateUserErrors = {
      * Admin user not found
      */
     404: unknown;
+    /**
+     * Rate limit exceeded
+     */
+    429: ApiErrorDto;
     /**
      * Error (ApiError envelope)
      */
