@@ -9,7 +9,7 @@ import { HashRouter, Route, Routes } from "react-router";
 import { WagmiProvider } from "wagmi";
 import "./App.css";
 import { Layout } from "./components/layout";
-import { AdminUserCreate, AdminUsersList } from "./pages/admin-users";
+import { AdminUserCreate, AdminUserEdit, AdminUsersList } from "./pages/admin-users";
 import { DesignSystemShowcase } from "./pages/design-system";
 import { IcsFormDetail } from "./pages/ics-forms/detail";
 import { IcsFormsList } from "./pages/ics-forms/list";
@@ -39,6 +39,8 @@ const documentTitleHandler: ComponentProps<
     title = resource.meta.label;
     if (action === "show" && params?.id) {
       title = `${title} #${params.id}`;
+    } else if (action === "edit" && params?.id) {
+      title = `Edit ${title} #${params.id}`;
     } else if (action === "create") {
       title = `Create ${title}`;
     }
@@ -87,6 +89,7 @@ function App() {
                   name: "admin-users",
                   list: "/users",
                   create: "/users/create",
+                  edit: "/users/:id/edit",
                   meta: {
                     label: "User Management",
                   },
@@ -135,6 +138,10 @@ function App() {
                           <Route
                             path="/users/create"
                             element={<AdminUserCreate />}
+                          />
+                          <Route
+                            path="/users/:id/edit"
+                            element={<AdminUserEdit />}
                           />
                           <Route path="/settings" element={<SettingsPage />} />
                         </Routes>

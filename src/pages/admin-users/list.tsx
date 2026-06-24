@@ -1,7 +1,6 @@
-import { useList, useUpdate, useNavigation, useGetIdentity } from "@refinedev/core";
-import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { Users, Plus, Shield, Eye, EyeOff, Loader2 } from "lucide-react";
+import { useList, useNavigation, useGetIdentity } from "@refinedev/core";
+import { Link } from "react-router";
+import { Users, Plus, Shield, Pencil } from "lucide-react";
 import type { AdminUserItemDto, AdminIdentity } from "../../types/api";
 import { useTableFilters } from "../../hooks/useTableFilters";
 import {
@@ -17,7 +16,6 @@ import {
   EmptyState,
   FilterToolbar,
   LoadingState,
-  notify,
   PageHeader,
   Panel,
   QueryErrorState,
@@ -46,11 +44,12 @@ const StatusBadge = ({ active }: { active: boolean }) => (
   </StatusPill>
 );
 
-type UserSortField = "id" | "address" | "role" | "active" | "createdAt";
+type UserSortField = "id" | "address" | "name" | "role" | "active" | "createdAt";
 
 const COLUMNS: { field: UserSortField; label: string }[] = [
   { field: "id", label: "ID" },
   { field: "address", label: "Address" },
+  { field: "name", label: "Name" },
   { field: "role", label: "Role" },
   { field: "active", label: "Status" },
   { field: "createdAt", label: "Created" },
@@ -63,7 +62,7 @@ const STATUS_OPTIONS: { label: string; value: boolean | undefined }[] = [
 ];
 
 const DEFAULT_ADMIN_USERS_TABLE_STATE: TableState<UserSortField> = {
-  filterValues: { role: undefined, active: undefined, address: "" },
+  filterValues: { role: undefined, active: undefined, address: "", name: "" },
   sortField: "createdAt",
   sortOrder: "desc",
   currentPage: 1,
@@ -71,14 +70,8 @@ const DEFAULT_ADMIN_USERS_TABLE_STATE: TableState<UserSortField> = {
 };
 
 export const AdminUsersList = () => {
-  const { create } = useNavigation();
+  const { create, edit } = useNavigation();
   const { data: identity } = useGetIdentity<AdminIdentity>();
-  const { mutate: toggleActive } = useUpdate();
-  const queryClient = useQueryClient();
-  const [togglingUserId, setTogglingUserId] = useState<number | null>(null);
-  const [optimisticUpdates, setOptimisticUpdates] = useState<
-    Map<number, boolean>
-  >(new Map());
   const { buildFilters } = useTableFilters();
   const {
     filterValues,
@@ -115,99 +108,6 @@ export const AdminUsersList = () => {
     ],
   });
 
-  const handleToggleActive = (userId: number, currentActive: boolean) => {
-    if (userId === identity?.id) {
-      return; // Prevent self-deactivation
-    }
-
-    const newActiveState = !currentActive;
-
-    // Start loading state
-    setTogglingUserId(userId);
-
-    // Apply optimistic update immediately
-    setOptimisticUpdates((prev) => new Map(prev).set(userId, newActiveState));
-
-    // Update cache optimistically
-    const queryKey = [
-      "admin-users",
-      "list",
-      { current: currentPage, pageSize },
-    ];
-    queryClient.setQueryData(
-      queryKey,
-      (oldData: { data?: AdminUserItemDto[]; total?: number } | undefined) => {
-        if (!oldData?.data) return oldData;
-
-        return {
-          ...oldData,
-          data: oldData.data.map((user: AdminUserItemDto) =>
-            user.id === userId ? { ...user, active: newActiveState } : user
-          ),
-        };
-      }
-    );
-
-    toggleActive(
-      {
-        resource: "admin-users",
-        id: userId,
-        values: { active: newActiveState },
-        meta: {
-          method: "patch",
-          endpoint: `/admin/users/${userId}/toggle-active`,
-        },
-      },
-      {
-        onSuccess: () => {
-          // Remove optimistic update since real data is now correct
-          setOptimisticUpdates((prev) => {
-            const newMap = new Map(prev);
-            newMap.delete(userId);
-            return newMap;
-          });
-          setTogglingUserId(null);
-          notify.success("User status updated successfully");
-        },
-        onError: () => {
-          // Revert optimistic update on error
-          setOptimisticUpdates((prev) => {
-            const newMap = new Map(prev);
-            newMap.delete(userId);
-            return newMap;
-          });
-
-          // Revert cache to original state
-          const queryKey = [
-            "admin-users",
-            "list",
-            { current: currentPage, pageSize },
-          ];
-          queryClient.setQueryData(
-            queryKey,
-            (
-              oldData: { data?: AdminUserItemDto[]; total?: number } | undefined
-            ) => {
-              if (!oldData?.data) return oldData;
-
-              return {
-                ...oldData,
-                data: oldData.data.map((user: AdminUserItemDto) =>
-                  user.id === userId ? { ...user, active: currentActive } : user
-                ),
-              };
-            }
-          );
-
-          setTogglingUserId(null);
-          notify.error(
-            `Failed to ${newActiveState ? "activate" : "deactivate"} user`
-          );
-        },
-      }
-    );
-  };
-
   const handleRoleFilter = (role?: "VIEWER" | "REVIEWER" | "SUPERVISOR") => {
     updateFilterValues((prev) => ({ ...prev, role }));
   };
@@ -218,6 +118,10 @@ export const AdminUsersList = () => {
 
   const handleAddressSearch = (address: string) => {
     updateFilterValues((prev) => ({ ...prev, address }));
+  };
+
+  const handleNameSearch = (name: string) => {
+    updateFilterValues((prev) => ({ ...prev, name }));
   };
 
   const handleSort = (field: UserSortField) => {
@@ -242,7 +146,7 @@ export const AdminUsersList = () => {
   }
 
   // Only show to supervisors
-  if (identity?.role !== "SUPERVISOR") {
+  if (identity?.role !== 'SUPERVISOR') {
     return (
       <div className="mx-auto max-w-md pt-10">
         <Panel className="p-8">
@@ -281,6 +185,15 @@ export const AdminUsersList = () => {
         {/* Filter toolbar */}
         <FilterToolbar onReset={clearFilters} resetDisabled={!hasStoredState()}>
           <SearchInput
+            id="name-search"
+            type="text"
+            aria-label="Search by name"
+            placeholder="Search by name"
+            value={(filterValues.name as string) || ""}
+            onDebouncedChange={handleNameSearch}
+            containerClassName="w-full sm:w-56"
+          />
+          <SearchInput
             mono
             id="address-search"
             type="text"
@@ -301,10 +214,7 @@ export const AdminUsersList = () => {
                 )
               }
             >
-              <SelectTrigger
-                aria-label="Filter by role"
-                className="h-9 w-[148px]"
-              >
+              <SelectTrigger aria-label="Filter by role" className="h-9 w-[148px]">
                 <SelectValue placeholder="All roles" />
               </SelectTrigger>
               <SelectContent>
@@ -324,87 +234,89 @@ export const AdminUsersList = () => {
         </FilterToolbar>
 
         {/* Table */}
-        <Table
-          containerClassName="max-h-[70vh]"
-          className="[&_td]:px-4 [&_td]:py-3 [&_th]:h-auto [&_th]:px-4 [&_th]:py-2.5"
-        >
-          <TableHeader sticky>
-            <TableRow className="hover:bg-transparent">
-              {COLUMNS.map((col) => (
-                <TableHead key={col.field}>
-                  <SortableHeader
-                    label={col.label}
-                    active={sortField === col.field}
-                    order={sortOrder}
-                    onClick={() => handleSort(col.field)}
-                  />
+          <Table
+            containerClassName="max-h-[70vh]"
+            className="[&_td]:px-4 [&_td]:py-3 [&_th]:h-auto [&_th]:px-4 [&_th]:py-2.5"
+          >
+            <TableHeader sticky>
+              <TableRow className="hover:bg-transparent">
+                {COLUMNS.map((col) => (
+                  <TableHead key={col.field}>
+                    <SortableHeader
+                      label={col.label}
+                      active={sortField === col.field}
+                      order={sortOrder}
+                      onClick={() => handleSort(col.field)}
+                    />
+                  </TableHead>
+                ))}
+                <TableHead className="text-right">
+                  <ColumnLabel>Actions</ColumnLabel>
                 </TableHead>
-              ))}
-              <TableHead className="text-right">
-                <ColumnLabel>Actions</ColumnLabel>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading && (
-              <TableSkeleton
-                columns={[
-                  { width: "h-4 w-8" },
-                  { width: "h-5 w-32" },
-                  { width: "h-5 w-20" },
-                  { width: "h-5 w-16" },
-                  { width: "h-4 w-20" },
-                  { width: "h-7 w-24", align: "right" },
-                ]}
-              />
-            )}
-
-            {isError && (
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={6}>
-                  <QueryErrorState
-                    title="Couldn't load users"
-                    onRetry={() => refetch()}
-                    isRetrying={isFetching}
-                    className="py-14"
-                  />
-                </TableCell>
               </TableRow>
-            )}
+            </TableHeader>
+            <TableBody>
+              {isLoading && (
+                <TableSkeleton
+                  columns={[
+                    { width: "h-4 w-8" },
+                    { width: "h-5 w-32" },
+                    { width: "h-4 w-24" },
+                    { width: "h-5 w-20" },
+                    { width: "h-5 w-16" },
+                    { width: "h-4 w-20" },
+                    { width: "h-7 w-16", align: "right" },
+                  ]}
+                />
+              )}
 
-            {isEmpty && (
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={6}>
-                  <EmptyState
-                    icon={Users}
-                    title="No users found"
-                    description="Try adjusting your filters, or add a new admin user."
-                    action={
-                      <Button size="sm" onClick={() => create("admin-users")}>
-                        <Plus className="size-4" />
-                        Add user
-                      </Button>
-                    }
-                    className="py-14"
-                  />
-                </TableCell>
-              </TableRow>
-            )}
+              {isError && (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={7}>
+                    <QueryErrorState
+                      title="Couldn't load users"
+                      onRetry={() => refetch()}
+                      isRetrying={isFetching}
+                      className="py-14"
+                    />
+                  </TableCell>
+                </TableRow>
+              )}
 
-            {!isLoading &&
-              rows.map((user: AdminUserItemDto) => {
-                const isSelf = user.id === identity?.id;
-                const displayActive =
-                  optimisticUpdates.get(user.id) ?? user.active;
-                return (
+              {isEmpty && (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={7}>
+                    <EmptyState
+                      icon={Users}
+                      title="No users found"
+                      description="Try adjusting your filters, or add a new admin user."
+                      action={
+                        <Button size="sm" onClick={() => create("admin-users")}>
+                          <Plus className="size-4" />
+                          Add user
+                        </Button>
+                      }
+                      className="py-14"
+                    />
+                  </TableCell>
+                </TableRow>
+              )}
+
+              {!isLoading &&
+                rows.map((user: AdminUserItemDto) => (
                   <TableRow key={user.id} className="group">
-                    <TableCell className="tabular-nums font-medium">
-                      #{user.id}
+                    <TableCell className="tabular-nums">
+                      <Link
+                        to={`/users/${user.id}/edit`}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        #{user.id}
+                      </Link>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <AddressDisplay address={user.address} />
-                        {isSelf && (
+                        {user.id === identity?.id && (
                           <Badge
                             variant="outline"
                             className="h-5 px-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
@@ -415,10 +327,17 @@ export const AdminUsersList = () => {
                       </div>
                     </TableCell>
                     <TableCell>
+                      {user.name ? (
+                        <span className="font-medium">{user.name}</span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
                       <RoleBadge role={user.role} />
                     </TableCell>
                     <TableCell>
-                      <StatusBadge active={displayActive} />
+                      <StatusBadge active={user.active} />
                     </TableCell>
                     <TableCell className="tabular-nums text-sm text-muted-foreground">
                       {new Date(user.createdAt).toLocaleDateString()}
@@ -427,37 +346,18 @@ export const AdminUsersList = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleToggleActive(user.id, user.active)}
-                        disabled={isSelf || togglingUserId === user.id}
-                        title={
-                          isSelf
-                            ? "Cannot modify your own status"
-                            : user.active
-                            ? "Deactivate user"
-                            : "Activate user"
-                        }
+                        onClick={() => edit("admin-users", user.id)}
+                        title="Edit user"
                         className="text-muted-foreground hover:text-foreground"
                       >
-                        {togglingUserId === user.id ? (
-                          <Loader2 className="size-3.5 animate-spin" />
-                        ) : user.active ? (
-                          <>
-                            <EyeOff className="size-3.5" />
-                            Deactivate
-                          </>
-                        ) : (
-                          <>
-                            <Eye className="size-3.5" />
-                            Activate
-                          </>
-                        )}
+                        <Pencil className="size-3.5" />
+                        Edit
                       </Button>
                     </TableCell>
                   </TableRow>
-                );
-              })}
-          </TableBody>
-        </Table>
+                ))}
+            </TableBody>
+          </Table>
 
         {/* Footer: range summary, page size, pagination */}
         <DataPagination

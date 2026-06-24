@@ -22,6 +22,7 @@ export const AdminUserCreate = () => {
   const isCreating = createMutation.isPending;
   const [formData, setFormData] = useState<AdminUserCreateDto>({
     address: "",
+    name: "",
     role: "REVIEWER",
     active: true,
   });
@@ -48,7 +49,8 @@ export const AdminUserCreate = () => {
 
     createUser({
       resource: "admin-users",
-      values: formData,
+      // `name` is optional — omit it entirely rather than sending an empty string.
+      values: { ...formData, name: formData.name?.trim() || undefined },
     }, {
       onSuccess: () => {
         notify.success("User created successfully");
@@ -69,6 +71,10 @@ export const AdminUserCreate = () => {
   const handleAddressChange = (value: string) => {
     setFormData(prev => ({ ...prev, address: value }));
     setError(null);
+  };
+
+  const handleNameChange = (value: string) => {
+    setFormData(prev => ({ ...prev, name: value }));
   };
 
   const handleRoleChange = (value: 'VIEWER' | 'REVIEWER' | 'SUPERVISOR') => {
@@ -134,6 +140,23 @@ export const AdminUserCreate = () => {
                 )}
                 disabled={isCreating}
                 required
+              />
+            </Field>
+
+            {/* Name Field */}
+            <Field
+              label="Display name"
+              htmlFor="name"
+              description="Optional friendly name shown across the admin panel."
+            >
+              <Input
+                id="name"
+                type="text"
+                placeholder="Alice"
+                value={formData.name ?? ""}
+                onChange={(e) => handleNameChange(e.target.value)}
+                maxLength={255}
+                disabled={isCreating}
               />
             </Field>
 
